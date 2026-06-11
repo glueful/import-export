@@ -131,7 +131,9 @@ final class ImportExportJobRepository
     public function incrementErrorOverflow(string $uuid, int $by = 1): void
     {
         $this->connection->table('import_export_jobs')->executeModification(
-            'UPDATE import_export_jobs SET error_overflow_count = error_overflow_count + ?, updated_at = ? WHERE uuid = ?',
+            'UPDATE import_export_jobs
+                SET error_overflow_count = error_overflow_count + ?, updated_at = ?
+              WHERE uuid = ?',
             [$by, $this->now(), $uuid]
         );
     }

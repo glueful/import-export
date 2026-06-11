@@ -88,11 +88,11 @@ final class ImportExportServiceProvider extends ServiceProvider
                     return new ExporterRegistry((array) $exporters);
                 }
             ),
-            ImportExportJobRepository::class => ['class' => ImportExportJobRepository::class, 'shared' => true, 'autowire' => true],
-            ImportExportBatchRepository::class => ['class' => ImportExportBatchRepository::class, 'shared' => true, 'autowire' => true],
-            ImportExportFileRepository::class => ['class' => ImportExportFileRepository::class, 'shared' => true, 'autowire' => true],
-            ImportExportReportRepository::class => ['class' => ImportExportReportRepository::class, 'shared' => true, 'autowire' => true],
-            ImportExportErrorRepository::class => ['class' => ImportExportErrorRepository::class, 'shared' => true, 'autowire' => true],
+            ImportExportJobRepository::class => self::autowired(ImportExportJobRepository::class),
+            ImportExportBatchRepository::class => self::autowired(ImportExportBatchRepository::class),
+            ImportExportFileRepository::class => self::autowired(ImportExportFileRepository::class),
+            ImportExportReportRepository::class => self::autowired(ImportExportReportRepository::class),
+            ImportExportErrorRepository::class => self::autowired(ImportExportErrorRepository::class),
             ImportExportService::class => new FactoryDefinition(
                 ImportExportService::class,
                 static function (ContainerInterface $c): ImportExportService {
@@ -110,7 +110,7 @@ final class ImportExportServiceProvider extends ServiceProvider
                     );
                 }
             ),
-            BatchRunner::class => ['class' => BatchRunner::class, 'shared' => true, 'autowire' => true],
+            BatchRunner::class => self::autowired(BatchRunner::class),
             RetryService::class => new FactoryDefinition(
                 RetryService::class,
                 static function (ContainerInterface $c): RetryService {
@@ -126,31 +126,40 @@ final class ImportExportServiceProvider extends ServiceProvider
                     );
                 }
             ),
-            ReportBuilder::class => ['class' => ReportBuilder::class, 'shared' => true, 'autowire' => true],
-            FailedRecordExporter::class => ['class' => FailedRecordExporter::class, 'shared' => true, 'autowire' => true],
-            RetentionCleaner::class => ['class' => RetentionCleaner::class, 'shared' => true, 'autowire' => true],
-            ProcessImportBatchJob::class => ['class' => ProcessImportBatchJob::class, 'shared' => false, 'autowire' => true],
-            ProcessExportBatchJob::class => ['class' => ProcessExportBatchJob::class, 'shared' => false, 'autowire' => true],
+            ReportBuilder::class => self::autowired(ReportBuilder::class),
+            FailedRecordExporter::class => self::autowired(FailedRecordExporter::class),
+            RetentionCleaner::class => self::autowired(RetentionCleaner::class),
+            ProcessImportBatchJob::class => self::autowired(ProcessImportBatchJob::class, shared: false),
+            ProcessExportBatchJob::class => self::autowired(ProcessExportBatchJob::class, shared: false),
             RequireImportExportPermission::class => [
                 'class' => RequireImportExportPermission::class,
                 'shared' => true,
                 'autowire' => true,
                 'alias' => ['import_export_permission'],
             ],
-            ImportExportAdapterController::class => ['class' => ImportExportAdapterController::class, 'shared' => true, 'autowire' => true],
-            ImportJobController::class => ['class' => ImportJobController::class, 'shared' => true, 'autowire' => true],
-            ExportJobController::class => ['class' => ExportJobController::class, 'shared' => true, 'autowire' => true],
-            ImportExportReportController::class => ['class' => ImportExportReportController::class, 'shared' => true, 'autowire' => true],
-            ImportExportRetryController::class => ['class' => ImportExportRetryController::class, 'shared' => true, 'autowire' => true],
-            ImportListCommand::class => ['class' => ImportListCommand::class, 'shared' => true, 'autowire' => true],
-            ImportCreateCommand::class => ['class' => ImportCreateCommand::class, 'shared' => true, 'autowire' => true],
-            ExportListCommand::class => ['class' => ExportListCommand::class, 'shared' => true, 'autowire' => true],
-            ExportCreateCommand::class => ['class' => ExportCreateCommand::class, 'shared' => true, 'autowire' => true],
-            ImportExportStatusCommand::class => ['class' => ImportExportStatusCommand::class, 'shared' => true, 'autowire' => true],
-            ImportExportCancelCommand::class => ['class' => ImportExportCancelCommand::class, 'shared' => true, 'autowire' => true],
-            ImportExportCleanupCommand::class => ['class' => ImportExportCleanupCommand::class, 'shared' => true, 'autowire' => true],
-            ImportExportRetryCommand::class => ['class' => ImportExportRetryCommand::class, 'shared' => true, 'autowire' => true],
+            ImportExportAdapterController::class => self::autowired(ImportExportAdapterController::class),
+            ImportJobController::class => self::autowired(ImportJobController::class),
+            ExportJobController::class => self::autowired(ExportJobController::class),
+            ImportExportReportController::class => self::autowired(ImportExportReportController::class),
+            ImportExportRetryController::class => self::autowired(ImportExportRetryController::class),
+            ImportListCommand::class => self::autowired(ImportListCommand::class),
+            ImportCreateCommand::class => self::autowired(ImportCreateCommand::class),
+            ExportListCommand::class => self::autowired(ExportListCommand::class),
+            ExportCreateCommand::class => self::autowired(ExportCreateCommand::class),
+            ImportExportStatusCommand::class => self::autowired(ImportExportStatusCommand::class),
+            ImportExportCancelCommand::class => self::autowired(ImportExportCancelCommand::class),
+            ImportExportCleanupCommand::class => self::autowired(ImportExportCleanupCommand::class),
+            ImportExportRetryCommand::class => self::autowired(ImportExportRetryCommand::class),
         ];
+    }
+
+    /**
+     * @param class-string $class
+     * @return array{class:class-string,shared:bool,autowire:bool}
+     */
+    private static function autowired(string $class, bool $shared = true): array
+    {
+        return ['class' => $class, 'shared' => $shared, 'autowire' => true];
     }
 
     public function getName(): string
@@ -189,11 +198,31 @@ final class ImportExportServiceProvider extends ServiceProvider
     public function permissions(): array
     {
         return [
-            Permission::define('import_export.view')->label('View import/export jobs')->category('Import Export')->resource('import_export')->managedBy('glueful/import-export'),
-            Permission::define('import_export.run_import')->label('Run imports')->category('Import Export')->resource('import_export')->managedBy('glueful/import-export'),
-            Permission::define('import_export.run_export')->label('Run exports')->category('Import Export')->resource('import_export')->managedBy('glueful/import-export'),
-            Permission::define('import_export.cancel')->label('Cancel import/export jobs')->category('Import Export')->resource('import_export')->managedBy('glueful/import-export'),
-            Permission::define('import_export.retry')->label('Retry import/export jobs')->category('Import Export')->resource('import_export')->managedBy('glueful/import-export'),
+            Permission::define('import_export.view')
+                ->label('View import/export jobs')
+                ->category('Import Export')
+                ->resource('import_export')
+                ->managedBy('glueful/import-export'),
+            Permission::define('import_export.run_import')
+                ->label('Run imports')
+                ->category('Import Export')
+                ->resource('import_export')
+                ->managedBy('glueful/import-export'),
+            Permission::define('import_export.run_export')
+                ->label('Run exports')
+                ->category('Import Export')
+                ->resource('import_export')
+                ->managedBy('glueful/import-export'),
+            Permission::define('import_export.cancel')
+                ->label('Cancel import/export jobs')
+                ->category('Import Export')
+                ->resource('import_export')
+                ->managedBy('glueful/import-export'),
+            Permission::define('import_export.retry')
+                ->label('Retry import/export jobs')
+                ->category('Import Export')
+                ->resource('import_export')
+                ->managedBy('glueful/import-export'),
         ];
     }
 }

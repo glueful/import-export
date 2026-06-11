@@ -16,7 +16,13 @@ final class ImportExportCleanupCommand extends BaseCommand
 {
     protected function configure(): void
     {
-        $this->addOption('days', null, InputOption::VALUE_REQUIRED, 'Delete temporary files older than this many days', '30');
+        $this->addOption(
+            'days',
+            null,
+            InputOption::VALUE_REQUIRED,
+            'Delete temporary files older than this many days',
+            '30'
+        );
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int

@@ -40,7 +40,11 @@ final class RetryService
         $failedBatches = $this->batches->failedForJob($jobUuid);
         foreach ($failedBatches as $batch) {
             $this->batches->resetForRetry((string) $batch['uuid']);
-            $this->queue->push($job['type'] === 'export' ? ProcessExportBatchJob::class : ProcessImportBatchJob::class, [
+            $jobClass = $job['type'] === 'export'
+                ? ProcessExportBatchJob::class
+                : ProcessImportBatchJob::class;
+
+            $this->queue->push($jobClass, [
                 'job_uuid' => $jobUuid,
                 'batch_uuid' => $batch['uuid'],
                 'adapter' => $job['adapter'],

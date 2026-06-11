@@ -53,7 +53,11 @@ final class ImportExportBatchRepository
 
         $affected = $this->connection->table('import_export_batches')->executeModification(
             'UPDATE import_export_batches
-                SET status = ?, locked_at = ?, attempts = attempts + 1, started_at = COALESCE(started_at, ?), updated_at = ?
+                SET status = ?,
+                    locked_at = ?,
+                    attempts = attempts + 1,
+                    started_at = COALESCE(started_at, ?),
+                    updated_at = ?
               WHERE uuid = ?
                 AND (status = ? OR (status = ? AND locked_at IS NOT NULL AND locked_at < ?))',
             [

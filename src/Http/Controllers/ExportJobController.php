@@ -70,7 +70,10 @@ final class ExportJobController
         return $user instanceof UserIdentity ? $user->id() : null;
     }
 
-    /** @param array<string,mixed> $job */
+    /**
+     * @param array<string,mixed> $job
+     * @return array<string,mixed>
+     */
     private function withLinks(array $job): array
     {
         $uuid = (string) ($job['uuid'] ?? '');

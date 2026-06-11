@@ -13,7 +13,10 @@ final class ImportExportReportRepository
     {
     }
 
-    /** @param array<string,mixed> $data */
+    /**
+     * @param array<string,mixed> $data
+     * @return array<string,mixed>
+     */
     public function create(array $data): array
     {
         $row = array_merge([

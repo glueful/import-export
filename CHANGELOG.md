@@ -4,12 +4,19 @@ All notable changes to `glueful/import-export` will be documented in this file.
 
 ## [Unreleased]
 
-### Added
-
-- Initial implementation plan and package scaffold for the import/export engine.
+- Nothing yet.
 
 ## [0.1.0] - 2026-06-11
 
 ### Added
 
-- Planned first release of the import/export engine extension.
+- Import/export job, batch, file, error, and report schema.
+- Importer and exporter adapter contracts with tagged registry wiring.
+- Streaming CSV, JSON, NDJSON, and ZIP bundle helpers with archive path guards.
+- Queue-backed import and export batch jobs with engine-owned retry behavior.
+- Explicit retry service, HTTP route, and CLI command.
+- HTTP API for adapters, imports, exports, jobs, errors, reports, cancel, and retry.
+- CLI commands for import/export list and run, status, retry, cancel, and cleanup.
+- Report builder, failed-record exporter, and retention cleaner.
+- Complete fake adapter flow tests for imports and exports.
+- Adapter, usage, security, and Lemma integration documentation.

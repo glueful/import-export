@@ -26,7 +26,11 @@ final class NdjsonReader
                 try {
                     $decoded = json_decode($line, true, flags: JSON_THROW_ON_ERROR);
                 } catch (\JsonException $e) {
-                    throw new \RuntimeException(sprintf('Invalid NDJSON on line %d: %s', $lineNumber, $e->getMessage()), 0, $e);
+                    throw new \RuntimeException(
+                        sprintf('Invalid NDJSON on line %d: %s', $lineNumber, $e->getMessage()),
+                        0,
+                        $e
+                    );
                 }
 
                 if (!is_array($decoded) || array_is_list($decoded)) {
