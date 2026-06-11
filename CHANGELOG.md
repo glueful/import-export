@@ -4,7 +4,10 @@ All notable changes to `glueful/import-export` will be documented in this file.
 
 ## [Unreleased]
 
-- Nothing yet.
+### Fixed
+
+- Return denied import/export permission checks through the framework
+  `Response` error envelope instead of a manual JSON response.
 
 ## [0.1.0] - 2026-06-11
 
