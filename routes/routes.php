@@ -162,7 +162,8 @@ $router->group(['prefix' => '/import-export', 'middleware' => ['auth']], functio
      * @tag Import Export
      * @response 200 application/json "Retry queued"
      * @response 403 "Permission denied (import_export.retry)"
-     * @response 500 "Job not found or adapter is not retryable"
+     * @response 404 "Job not found"
+     * @response 422 "Adapter is not retryable"
      */
     $router->post('/jobs/{uuid}/retry', [ImportExportRetryController::class, 'retry'])
         ->where('uuid', '[A-Za-z0-9_-]+')

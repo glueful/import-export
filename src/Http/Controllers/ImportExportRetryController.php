@@ -15,7 +15,15 @@ final class ImportExportRetryController
 
     public function retry(string $uuid): Response
     {
-        $this->retry->retry($uuid);
+        try {
+            $this->retry->retry($uuid);
+        } catch (\RuntimeException $e) {
+            if (str_contains($e->getMessage(), 'was not found')) {
+                return Response::notFound('Import/export job not found.');
+            }
+
+            return Response::validation(['retry' => $e->getMessage()]);
+        }
 
         return Response::success(['uuid' => $uuid], 'Import/export job retry queued.');
     }
