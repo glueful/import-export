@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace Glueful\Extensions\ImportExport\Tests\Unit\Services;
 
 use Glueful\Extensions\ImportExport\Registry\ImporterRegistry;
+use Glueful\Extensions\ImportExport\Registry\ExporterRegistry;
 use Glueful\Extensions\ImportExport\Repositories\ImportExportBatchRepository;
 use Glueful\Extensions\ImportExport\Repositories\ImportExportErrorRepository;
+use Glueful\Extensions\ImportExport\Repositories\ImportExportFileRepository;
 use Glueful\Extensions\ImportExport\Repositories\ImportExportJobRepository;
 use Glueful\Extensions\ImportExport\Services\BatchRunner;
 use Glueful\Extensions\ImportExport\Support\ImportBatchResult;
+use Glueful\Extensions\ImportExport\Tests\Support\FakeExporter;
 use Glueful\Extensions\ImportExport\Tests\Support\FakeImporter;
 use Glueful\Extensions\ImportExport\Tests\Support\ImportExportTestCase;
 
@@ -51,9 +54,11 @@ final class BatchRunnerTest extends ImportExportTestCase
         return new BatchRunner(
             $this->appContext(),
             new ImporterRegistry([$importer]),
+            new ExporterRegistry([new FakeExporter('fake')]),
             $jobs,
             $batches,
             new ImportExportErrorRepository($this->connection(), $jobs),
+            new ImportExportFileRepository($this->connection()),
         );
     }
 }

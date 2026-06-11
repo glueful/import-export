@@ -116,6 +116,18 @@ final class ImportExportJobRepository
         $this->transition($uuid, 'cancelled');
     }
 
+    public function updateProgress(string $uuid, int $processedRecords, int $failedRecords): void
+    {
+        $this->connection
+            ->table('import_export_jobs')
+            ->where('uuid', '=', $uuid)
+            ->update([
+                'processed_records' => $processedRecords,
+                'failed_records' => $failedRecords,
+                'updated_at' => $this->now(),
+            ]);
+    }
+
     public function incrementErrorOverflow(string $uuid, int $by = 1): void
     {
         $this->connection->table('import_export_jobs')->executeModification(

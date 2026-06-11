@@ -26,4 +26,19 @@ final class ImportExportFileRepository
 
         return $row;
     }
+
+    /** @return list<array<string,mixed>> */
+    public function forJob(string $jobUuid, ?string $role = null): array
+    {
+        $query = $this->connection
+            ->table('import_export_files')
+            ->where('job_uuid', '=', $jobUuid)
+            ->orderBy('id');
+
+        if ($role !== null) {
+            $query->where('role', '=', $role);
+        }
+
+        return $query->get();
+    }
 }
