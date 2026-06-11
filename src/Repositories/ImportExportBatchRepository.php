@@ -85,6 +85,31 @@ final class ImportExportBatchRepository
             ]);
     }
 
+    /** @return list<array<string,mixed>> */
+    public function failedForJob(string $jobUuid): array
+    {
+        return $this->connection
+            ->table('import_export_batches')
+            ->where('job_uuid', '=', $jobUuid)
+            ->where('status', '=', 'failed')
+            ->orderBy('sequence')
+            ->get();
+    }
+
+    public function resetForRetry(string $uuid): void
+    {
+        $this->connection
+            ->table('import_export_batches')
+            ->where('uuid', '=', $uuid)
+            ->update([
+                'status' => 'pending',
+                'locked_at' => null,
+                'started_at' => null,
+                'finished_at' => null,
+                'updated_at' => $this->now(),
+            ]);
+    }
+
     private function normalizeDateTime(string $value): string
     {
         $timestamp = strtotime($value);

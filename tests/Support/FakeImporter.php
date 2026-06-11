@@ -12,7 +12,7 @@ use Glueful\Extensions\ImportExport\Support\ImportOptions;
 use Glueful\Extensions\ImportExport\Support\ImportPlan;
 use Glueful\Extensions\ImportExport\Support\ImportSource;
 
-final class FakeImporter implements ImporterInterface
+class FakeImporter implements ImporterInterface
 {
     public bool $processed = false;
     public ?string $lastMode = null;
