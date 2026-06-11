@@ -6,6 +6,8 @@ namespace Glueful\Extensions\ImportExport\Services;
 
 use Glueful\Extensions\ImportExport\Jobs\ProcessExportBatchJob;
 use Glueful\Extensions\ImportExport\Jobs\ProcessImportBatchJob;
+use Glueful\Events\EventService;
+use Glueful\Extensions\ImportExport\Events\ImportExportJobCreated;
 use Glueful\Extensions\ImportExport\Registry\ExporterRegistry;
 use Glueful\Extensions\ImportExport\Registry\ImporterRegistry;
 use Glueful\Extensions\ImportExport\Repositories\ImportExportBatchRepository;
@@ -26,6 +28,7 @@ final class ImportExportService
         private ImportExportFileRepository $files,
         private QueueManager $queue,
         private string $queueName = 'import-export',
+        private ?EventService $events = null,
     ) {
     }
 
@@ -75,6 +78,8 @@ final class ImportExportService
             ], $this->queueName);
         }
 
+        $this->events?->dispatch(new ImportExportJobCreated($job['uuid'], 'import', $adapterKey));
+
         return $this->jobs->find($job['uuid']) ?? $job;
     }
 
@@ -109,6 +114,8 @@ final class ImportExportService
                 'retryable' => $plan->retryable,
             ], $this->queueName);
         }
+
+        $this->events?->dispatch(new ImportExportJobCreated($job['uuid'], 'export', $adapterKey));
 
         return $this->jobs->find($job['uuid']) ?? $job;
     }
