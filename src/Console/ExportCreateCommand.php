@@ -13,6 +13,8 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
+use function config;
+
 #[AsCommand(name: 'export:run', description: 'Create and queue an export job')]
 final class ExportCreateCommand extends BaseCommand
 {
@@ -22,7 +24,12 @@ final class ExportCreateCommand extends BaseCommand
     {
         $this->addOption('adapter', null, InputOption::VALUE_REQUIRED, 'Exporter adapter key');
         $this->addOption('format', null, InputOption::VALUE_REQUIRED, 'Export format', 'ndjson');
-        $this->addOption('batch-size', null, InputOption::VALUE_REQUIRED, 'Batch size', '500');
+        $this->addOption(
+            'batch-size',
+            null,
+            InputOption::VALUE_REQUIRED,
+            'Batch size (default: import_export.batch_size config)'
+        );
         $this->addOption('actor', null, InputOption::VALUE_REQUIRED, 'Actor user UUID');
         $this->addOption('filters', null, InputOption::VALUE_REQUIRED, 'Export filters as JSON object');
         $this->addOption('options', null, InputOption::VALUE_REQUIRED, 'Adapter options as JSON object');
@@ -35,7 +42,11 @@ final class ExportCreateCommand extends BaseCommand
                 $this->requiredOption($input, 'adapter'),
                 new ExportOptions(
                     $this->stringOption($input, 'format', 'ndjson'),
-                    $this->intOption($input, 'batch-size', 500),
+                    $this->intOption(
+                        $input,
+                        'batch-size',
+                        (int) config($this->getContext(), 'import_export.batch_size', 500)
+                    ),
                     $this->stringOption($input, 'actor') !== '' ? $this->stringOption($input, 'actor') : null,
                     $this->jsonOption($input, 'filters'),
                     $this->jsonOption($input, 'options')

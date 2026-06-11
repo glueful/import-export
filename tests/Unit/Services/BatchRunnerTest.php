@@ -54,6 +54,21 @@ final class BatchRunnerTest extends ImportExportTestCase
         $this->assertSame(3, (int) $row['processed_records']);
     }
 
+    public function testImportBatchReceivesPersistedOptions(): void
+    {
+        $job = $this->seedJob([
+            'status' => 'running',
+            'mode' => 'commit',
+            'options' => json_encode(['locale' => 'en'], JSON_THROW_ON_ERROR),
+        ]);
+        $batch = $this->seedBatch(['job_uuid' => $job['uuid'], 'status' => 'pending']);
+        $importer = new FakeImporter('fake', batchResult: new ImportBatchResult(1, 0, []));
+
+        $this->runner($importer)->runImportBatch($batch['uuid']);
+
+        $this->assertSame(['locale' => 'en'], $importer->lastContext?->options);
+    }
+
     public function testThrowingImporterMarksBatchAndJobFailedAndRecordsError(): void
     {
         $job = $this->seedJob(['status' => 'queued', 'mode' => 'commit']);
@@ -114,6 +129,26 @@ final class BatchRunnerTest extends ImportExportTestCase
 
         $row = (new ImportExportBatchRepository($this->connection()))->find($batch['uuid']);
         self::assertSame('completed', $row['status']);
+    }
+
+    public function testExportBatchReceivesPersistedFormatAndOptions(): void
+    {
+        $job = $this->seedJob([
+            'status' => 'queued',
+            'type' => 'export',
+            'adapter' => 'fake',
+            'format' => 'csv',
+            'filters' => json_encode(['status' => 'published'], JSON_THROW_ON_ERROR),
+            'options' => json_encode(['include_media' => true], JSON_THROW_ON_ERROR),
+        ]);
+        $batch = $this->seedBatch(['job_uuid' => $job['uuid'], 'status' => 'pending']);
+        $exporter = new FakeExporter('fake');
+
+        $this->runner(new FakeImporter('fake'), $exporter)->runExportBatch($batch['uuid']);
+
+        self::assertSame('csv', $exporter->lastContext?->format);
+        self::assertSame(['status' => 'published'], $exporter->lastContext?->filters);
+        self::assertSame(['include_media' => true], $exporter->lastContext?->options);
     }
 
     public function testSuccessfulBatchDispatchesLifecycleEvents(): void

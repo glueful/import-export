@@ -22,6 +22,8 @@ use Glueful\Extensions\ImportExport\Support\ExportContext;
 use Glueful\Extensions\ImportExport\Support\ImportBatch;
 use Glueful\Extensions\ImportExport\Support\ImportContext;
 
+use function config;
+
 class BatchRunner
 {
     public function __construct(
@@ -52,7 +54,7 @@ class BatchRunner
             return;
         }
 
-        if (!$this->batches->claim($batchUuid, '-15 minutes')) {
+        if (!$this->batches->claim($batchUuid, $this->staleLockCutoff())) {
             return;
         }
 
@@ -73,6 +75,7 @@ class BatchRunner
                     jobUuid: (string) $job['uuid'],
                     mode: (string) $job['mode'],
                     actorUuid: $job['created_by'] ?? null,
+                    options: $this->jsonArray($job['options'] ?? null),
                 )
             );
         } catch (\Throwable $e) {
@@ -81,7 +84,7 @@ class BatchRunner
         }
 
         foreach ($result->errors as $error) {
-            $this->errors->record((string) $job['uuid'], $batchUuid, $error);
+            $this->errors->record((string) $job['uuid'], $batchUuid, $error, $this->errorCapPerSeverity());
         }
 
         $this->batches->complete($batchUuid, $result->processedRecords, $result->failedRecords);
@@ -105,7 +108,7 @@ class BatchRunner
             return;
         }
 
-        if (!$this->batches->claim($batchUuid, '-15 minutes')) {
+        if (!$this->batches->claim($batchUuid, $this->staleLockCutoff())) {
             return;
         }
 
@@ -124,8 +127,10 @@ class BatchRunner
                 new ExportContext(
                     app: $this->context,
                     jobUuid: (string) $job['uuid'],
-                    format: 'ndjson',
+                    format: (string) ($job['format'] ?? 'ndjson'),
                     actorUuid: $job['created_by'] ?? null,
+                    filters: $this->jsonArray($job['filters'] ?? null),
+                    options: $this->jsonArray($job['options'] ?? null),
                 )
             );
         } catch (\Throwable $e) {
@@ -134,7 +139,7 @@ class BatchRunner
         }
 
         foreach ($result->errors as $error) {
-            $this->errors->record((string) $job['uuid'], $batchUuid, $error);
+            $this->errors->record((string) $job['uuid'], $batchUuid, $error, $this->errorCapPerSeverity());
         }
 
         if ($result->resultPath !== null) {
@@ -164,6 +169,34 @@ class BatchRunner
         }
     }
 
+    private function staleLockCutoff(): string
+    {
+        $minutes = max(1, (int) config($this->context, 'import_export.stale_lock_minutes', 15));
+
+        return sprintf('-%d minutes', $minutes);
+    }
+
+    private function errorCapPerSeverity(): int
+    {
+        return max(1, (int) config($this->context, 'import_export.error_cap_per_severity', 1000));
+    }
+
+    /** @return array<string,mixed> */
+    private function jsonArray(mixed $value): array
+    {
+        if (is_array($value)) {
+            return $value;
+        }
+
+        if (!is_string($value) || $value === '') {
+            return [];
+        }
+
+        $decoded = json_decode($value, true);
+
+        return is_array($decoded) ? $decoded : [];
+    }
+
     /** @param array<string,mixed> $job */
     private function failClaimedBatch(array $job, string $batchUuid, \Throwable $e): void
     {
@@ -174,7 +207,7 @@ class BatchRunner
             'context' => [
                 'exception' => $e::class,
             ],
-        ]);
+        ], $this->errorCapPerSeverity());
         $this->batches->complete($batchUuid, 0, 1);
         $this->events?->dispatch(new ImportExportBatchFailed(
             (string) $job['uuid'],

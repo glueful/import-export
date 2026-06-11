@@ -32,6 +32,7 @@ final class CompleteImportFlowTest extends ImportExportTestCase
         $errors = new ImportExportErrorRepository($this->connection(), $jobs);
         $reports = new ImportExportReportRepository($this->connection());
         $service = new ImportExportService(
+            $this->appContext(),
             new ImporterRegistry([$importer]),
             new ExporterRegistry([new FakeExporter()]),
             $jobs,

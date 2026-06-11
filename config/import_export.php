@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 return [
-    'enabled' => true,
     'routes_enabled' => true,
     'source_disk' => 'uploads',
     'result_disk' => 'uploads',

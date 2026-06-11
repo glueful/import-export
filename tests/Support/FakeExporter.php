@@ -13,6 +13,9 @@ use Glueful\Extensions\ImportExport\Support\ExportPlan;
 
 final class FakeExporter implements ExporterInterface
 {
+    public ?ExportOptions $lastPlanOptions = null;
+    public ?ExportContext $lastContext = null;
+
     public function __construct(
         private string $key,
         private ?ExportPlan $plan = null,
@@ -32,6 +35,8 @@ final class FakeExporter implements ExporterInterface
 
     public function plan(ExportOptions $options): ExportPlan
     {
+        $this->lastPlanOptions = $options;
+
         return $this->plan ?? new ExportPlan(0, [], retryable: true);
     }
 
@@ -40,6 +45,8 @@ final class FakeExporter implements ExporterInterface
         if ($this->throw !== null) {
             throw $this->throw;
         }
+
+        $this->lastContext = $context;
 
         return new ExportBatchResult(0, 0, [], null);
     }

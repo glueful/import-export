@@ -24,7 +24,8 @@ final class ExportJobControllerTest extends ImportExportTestCase
     {
         $queue = new FakeQueueManager();
         $jobs = new ImportExportJobRepository($this->connection());
-        $controller = new ExportJobController(new ImportExportService(
+        $controller = new ExportJobController($this->appContext(), new ImportExportService(
+            $this->appContext(),
             new ImporterRegistry([]),
             new ExporterRegistry([
                 new FakeExporter('fake', new ExportPlan(10, [

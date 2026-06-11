@@ -45,10 +45,13 @@ final class CreateImportExportTables implements MigrationInterface
             $table->string('adapter', 120);
             $table->string('status', 20);
             $table->string('mode', 20);
+            $table->string('format', 40)->nullable();
             $table->string('source_disk', 120)->nullable();
             $table->string('source_path', 2048)->nullable();
             $table->string('result_disk', 120)->nullable();
             $table->string('result_path', 2048)->nullable();
+            $table->json('filters')->nullable();
+            $table->json('options')->nullable();
             $table->integer('total_records')->default(0);
             $table->integer('processed_records')->default(0);
             $table->integer('failed_records')->default(0);

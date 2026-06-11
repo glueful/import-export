@@ -139,6 +139,7 @@ final class ImportExportServiceProvider extends ServiceProvider
         $context = $c->get(ApplicationContext::class);
 
         return new ImportExportService(
+            $context,
             $c->get(ImporterRegistry::class),
             $c->get(ExporterRegistry::class),
             $c->get(ImportExportJobRepository::class),

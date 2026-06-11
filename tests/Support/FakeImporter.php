@@ -16,6 +16,8 @@ class FakeImporter implements ImporterInterface
 {
     public bool $processed = false;
     public ?string $lastMode = null;
+    public ?ImportOptions $lastPlanOptions = null;
+    public ?ImportContext $lastContext = null;
 
     public function __construct(
         private string $key,
@@ -42,6 +44,8 @@ class FakeImporter implements ImporterInterface
 
     public function plan(ImportSource $source, ImportOptions $options): ImportPlan
     {
+        $this->lastPlanOptions = $options;
+
         return $this->plan ?? new ImportPlan(0, [], retryable: true);
     }
 
@@ -53,6 +57,7 @@ class FakeImporter implements ImporterInterface
 
         $this->processed = true;
         $this->lastMode = $context->mode;
+        $this->lastContext = $context;
 
         return $this->batchResult ?? new ImportBatchResult(0, 0, []);
     }

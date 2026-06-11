@@ -14,6 +14,8 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
+use function config;
+
 #[AsCommand(name: 'import:run', description: 'Create and queue an import job')]
 final class ImportCreateCommand extends BaseCommand
 {
@@ -22,11 +24,21 @@ final class ImportCreateCommand extends BaseCommand
     protected function configure(): void
     {
         $this->addOption('adapter', null, InputOption::VALUE_REQUIRED, 'Importer adapter key');
-        $this->addOption('disk', null, InputOption::VALUE_REQUIRED, 'Source storage disk', 'uploads');
+        $this->addOption(
+            'disk',
+            null,
+            InputOption::VALUE_REQUIRED,
+            'Source storage disk (default: import_export.source_disk config)'
+        );
         $this->addOption('path', null, InputOption::VALUE_REQUIRED, 'Source path');
         $this->addOption('mime-type', null, InputOption::VALUE_REQUIRED, 'Source MIME type');
         $this->addOption('mode', null, InputOption::VALUE_REQUIRED, 'Import mode: dry_run|commit', 'dry_run');
-        $this->addOption('batch-size', null, InputOption::VALUE_REQUIRED, 'Batch size', '500');
+        $this->addOption(
+            'batch-size',
+            null,
+            InputOption::VALUE_REQUIRED,
+            'Batch size (default: import_export.batch_size config)'
+        );
         $this->addOption('actor', null, InputOption::VALUE_REQUIRED, 'Actor user UUID');
         $this->addOption('options', null, InputOption::VALUE_REQUIRED, 'Adapter options as JSON object');
     }
@@ -37,13 +49,21 @@ final class ImportCreateCommand extends BaseCommand
             $job = $this->getService(ImportExportService::class)->createImport(
                 $this->requiredOption($input, 'adapter'),
                 new ImportSource(
-                    $this->stringOption($input, 'disk', 'uploads'),
+                    $this->stringOption(
+                        $input,
+                        'disk',
+                        (string) config($this->getContext(), 'import_export.source_disk', 'uploads')
+                    ),
                     $this->requiredOption($input, 'path'),
                     $this->stringOption($input, 'mime-type') !== '' ? $this->stringOption($input, 'mime-type') : null
                 ),
                 new ImportOptions(
                     $this->stringOption($input, 'mode', 'dry_run'),
-                    $this->intOption($input, 'batch-size', 500),
+                    $this->intOption(
+                        $input,
+                        'batch-size',
+                        (int) config($this->getContext(), 'import_export.batch_size', 500)
+                    ),
                     $this->stringOption($input, 'actor') !== '' ? $this->stringOption($input, 'actor') : null,
                     $this->jsonOption($input, 'options')
                 )

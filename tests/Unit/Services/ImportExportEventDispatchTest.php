@@ -27,6 +27,7 @@ final class ImportExportEventDispatchTest extends ImportExportTestCase
         $dispatcher = new RecordingDispatcher();
         $events = new EventService($dispatcher, new ListenerProvider());
         $service = new ImportExportService(
+            $this->appContext(),
             new ImporterRegistry([new FakeImporter('wordpress')]),
             new ExporterRegistry([]),
             new ImportExportJobRepository($this->connection()),

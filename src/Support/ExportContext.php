@@ -9,6 +9,7 @@ use Glueful\Bootstrap\ApplicationContext;
 final readonly class ExportContext
 {
     /**
+     * @param array<string,mixed> $filters
      * @param array<string,mixed> $options
      */
     public function __construct(
@@ -16,6 +17,7 @@ final readonly class ExportContext
         public string $jobUuid,
         public string $format,
         public ?string $actorUuid = null,
+        public array $filters = [],
         public array $options = [],
     ) {
     }

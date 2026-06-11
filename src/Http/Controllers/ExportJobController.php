@@ -5,15 +5,20 @@ declare(strict_types=1);
 namespace Glueful\Extensions\ImportExport\Http\Controllers;
 
 use Glueful\Auth\UserIdentity;
+use Glueful\Bootstrap\ApplicationContext;
 use Glueful\Extensions\ImportExport\Services\ImportExportService;
 use Glueful\Extensions\ImportExport\Support\ExportOptions;
 use Glueful\Http\Response;
 use Symfony\Component\HttpFoundation\Request;
 
+use function config;
+
 final class ExportJobController
 {
-    public function __construct(private ImportExportService $service)
-    {
+    public function __construct(
+        private ApplicationContext $context,
+        private ImportExportService $service,
+    ) {
     }
 
     public function store(Request $request): Response
@@ -24,7 +29,8 @@ final class ExportJobController
                 $this->requiredString($data, 'adapter'),
                 new ExportOptions(
                     format: (string) ($data['format'] ?? 'ndjson'),
-                    batchSize: (int) ($data['batch_size'] ?? 500),
+                    batchSize: (int) ($data['batch_size']
+                        ?? config($this->context, 'import_export.batch_size', 500)),
                     actorUuid: $this->actorUuid($request),
                     filters: is_array($data['filters'] ?? null) ? $data['filters'] : [],
                     options: is_array($data['options'] ?? null) ? $data['options'] : []

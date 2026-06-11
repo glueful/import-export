@@ -87,7 +87,9 @@ final class ImportJobControllerTest extends ImportExportTestCase
         $errors = new ImportExportErrorRepository($this->connection(), $jobs);
 
         return new ImportJobController(
+            $this->appContext(),
             new ImportExportService(
+                $this->appContext(),
                 new ImporterRegistry([
                     new FakeImporter('fake', new ImportPlan(10, [
                         new ImportBatch('batch-1', 'job-1', 1, 0, 10),

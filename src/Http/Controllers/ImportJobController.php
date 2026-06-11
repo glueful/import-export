@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Glueful\Extensions\ImportExport\Http\Controllers;
 
 use Glueful\Auth\UserIdentity;
+use Glueful\Bootstrap\ApplicationContext;
 use Glueful\Events\EventService;
 use Glueful\Extensions\ImportExport\Events\ImportExportJobCancelled;
 use Glueful\Extensions\ImportExport\Repositories\ImportExportBatchRepository;
@@ -16,9 +17,12 @@ use Glueful\Extensions\ImportExport\Support\ImportSource;
 use Glueful\Http\Response;
 use Symfony\Component\HttpFoundation\Request;
 
+use function config;
+
 final class ImportJobController
 {
     public function __construct(
+        private ApplicationContext $context,
         private ImportExportService $service,
         private ImportExportJobRepository $jobs,
         private ImportExportBatchRepository $batches,
@@ -45,14 +49,16 @@ final class ImportJobController
             $job = $this->service->createImport(
                 $this->requiredString($data, 'adapter'),
                 new ImportSource(
-                    disk: (string) ($data['disk'] ?? 'uploads'),
+                    disk: (string) ($data['disk']
+                        ?? config($this->context, 'import_export.source_disk', 'uploads')),
                     path: $this->requiredString($data, 'path'),
                     mimeType: isset($data['mime_type']) ? (string) $data['mime_type'] : null,
                     metadata: is_array($data['metadata'] ?? null) ? $data['metadata'] : []
                 ),
                 new ImportOptions(
                     mode: (string) ($data['mode'] ?? 'dry_run'),
-                    batchSize: (int) ($data['batch_size'] ?? 500),
+                    batchSize: (int) ($data['batch_size']
+                        ?? config($this->context, 'import_export.batch_size', 500)),
                     actorUuid: $this->actorUuid($request),
                     options: is_array($data['options'] ?? null) ? $data['options'] : []
                 )

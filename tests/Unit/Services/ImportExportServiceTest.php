@@ -46,6 +46,23 @@ final class ImportExportServiceTest extends ImportExportTestCase
         $this->assertSame(ProcessImportBatchJob::class, $queue->pushed[0]['job']);
     }
 
+    public function testCreateImportPersistsAdapterOptionsForBatchProcessing(): void
+    {
+        $service = $this->service(
+            importer: new FakeImporter('wordpress', new ImportPlan(1, [
+                new ImportBatch('batch-a', 'pending', 1, 0, 1),
+            ], retryable: true)),
+        );
+
+        $job = $service->createImport(
+            'wordpress',
+            new ImportSource('uploads', 'wordpress.zip'),
+            new ImportOptions(options: ['site' => 'main'])
+        );
+
+        $this->assertSame(['site' => 'main'], json_decode((string) $job['options'], true));
+    }
+
     public function testCreateExportJobPlansBatchesAndEnqueuesJobs(): void
     {
         $queue = new FakeQueueManager();
@@ -60,7 +77,29 @@ final class ImportExportServiceTest extends ImportExportTestCase
 
         $this->assertSame('export', $job['type']);
         $this->assertSame('entries', $job['adapter']);
+        $this->assertSame('ndjson', $job['format']);
+        $this->assertSame('uploads', $job['result_disk']);
         $this->assertSame(ProcessExportBatchJob::class, $queue->pushed[0]['job']);
+    }
+
+    public function testCreateExportPersistsFormatFiltersOptionsAndResultDisk(): void
+    {
+        $service = $this->service(
+            exporter: new FakeExporter('entries', new ExportPlan(1, [
+                new ExportBatch('batch-a', 'pending', 1, 0, 1),
+            ], retryable: true)),
+        );
+
+        $job = $service->createExport('entries', new ExportOptions(
+            format: 'csv',
+            filters: ['status' => 'published'],
+            options: ['include_drafts' => false]
+        ));
+
+        $this->assertSame('csv', $job['format']);
+        $this->assertSame('uploads', $job['result_disk']);
+        $this->assertSame(['status' => 'published'], json_decode((string) $job['filters'], true));
+        $this->assertSame(['include_drafts' => false], json_decode((string) $job['options'], true));
     }
 
     private function service(
@@ -69,6 +108,7 @@ final class ImportExportServiceTest extends ImportExportTestCase
         ?FakeQueueManager $queue = null,
     ): ImportExportService {
         return new ImportExportService(
+            $this->appContext(),
             new ImporterRegistry($importer === null ? [] : [$importer]),
             new ExporterRegistry($exporter === null ? [] : [$exporter]),
             new ImportExportJobRepository($this->connection()),
