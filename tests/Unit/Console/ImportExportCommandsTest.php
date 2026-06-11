@@ -11,6 +11,7 @@ use Glueful\Extensions\ImportExport\Console\ExportListCommand;
 use Glueful\Extensions\ImportExport\Console\ImportCreateCommand;
 use Glueful\Extensions\ImportExport\Console\ImportExportCancelCommand;
 use Glueful\Extensions\ImportExport\Console\ImportExportCleanupCommand;
+use Glueful\Extensions\ImportExport\Console\ImportExportFailedRecordsCommand;
 use Glueful\Extensions\ImportExport\Console\ImportExportRetryCommand;
 use Glueful\Extensions\ImportExport\Console\ImportExportStatusCommand;
 use Glueful\Extensions\ImportExport\Console\ImportListCommand;
@@ -21,6 +22,7 @@ use Glueful\Extensions\ImportExport\Repositories\ImportExportBatchRepository;
 use Glueful\Extensions\ImportExport\Repositories\ImportExportFileRepository;
 use Glueful\Extensions\ImportExport\Repositories\ImportExportJobRepository;
 use Glueful\Extensions\ImportExport\Services\ImportExportService;
+use Glueful\Extensions\ImportExport\Services\FailedRecordExporter;
 use Glueful\Extensions\ImportExport\Services\RetentionCleaner;
 use Glueful\Extensions\ImportExport\Services\RetryService;
 use Glueful\Extensions\ImportExport\Support\ExportBatch;
@@ -97,6 +99,30 @@ final class ImportExportCommandsTest extends ImportExportTestCase
         self::assertSame(Command::FAILURE, $result);
     }
 
+    public function testFailedRecordsCommandExportsErrors(): void
+    {
+        $this->bindImportExportServices(new FakeQueueManager());
+        $job = $this->seedJob(['status' => 'failed']);
+        $errors = new \Glueful\Extensions\ImportExport\Repositories\ImportExportErrorRepository(
+            $this->connection(),
+            new ImportExportJobRepository($this->connection())
+        );
+        $errors->record($job['uuid'], null, ['message' => 'Bad row', 'code' => 'bad_row']);
+        $path = tempnam(sys_get_temp_dir(), 'failed-record-cli-') . '.ndjson';
+        $command = new ImportExportFailedRecordsCommand($this->appContext()->getContainer(), $this->appContext());
+        $command->setName('import-export:failed-records');
+
+        $result = (new CommandTester($command))->execute([
+            'job' => $job['uuid'],
+            'path' => $path,
+        ]);
+
+        self::assertSame(Command::SUCCESS, $result);
+        self::assertStringContainsString('Bad row', (string) file_get_contents($path));
+
+        @unlink($path);
+    }
+
     private function bindImportExportServices(FakeQueueManager $queue): void
     {
         $jobs = new ImportExportJobRepository($this->connection());
@@ -115,7 +141,15 @@ final class ImportExportCommandsTest extends ImportExportTestCase
 
         $this->bind(ImportExportJobRepository::class, $jobs);
         $this->bind(ImportExportBatchRepository::class, $batches);
+        $this->bind(
+            FailedRecordExporter::class,
+            new FailedRecordExporter(new \Glueful\Extensions\ImportExport\Repositories\ImportExportErrorRepository(
+                $this->connection(),
+                $jobs
+            ))
+        );
         $this->bind(ImportExportService::class, new ImportExportService(
+            $this->appContext(),
             $importers,
             $exporters,
             $jobs,

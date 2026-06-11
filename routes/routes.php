@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Glueful\Extensions\ImportExport\Http\Controllers\ExportJobController;
+use Glueful\Extensions\ImportExport\Http\Controllers\FailedRecordExportController;
 use Glueful\Extensions\ImportExport\Http\Controllers\ImportExportAdapterController;
 use Glueful\Extensions\ImportExport\Http\Controllers\ImportExportReportController;
 use Glueful\Extensions\ImportExport\Http\Controllers\ImportExportRetryController;
@@ -169,4 +170,22 @@ $router->group(['prefix' => '/import-export', 'middleware' => ['auth']], functio
         ->where('uuid', '[A-Za-z0-9_-]+')
         ->middleware('import_export_permission:import_export.retry')
         ->name('import_export.jobs.retry');
+
+    /**
+     * @route POST /import-export/jobs/{uuid}/failed-records/export
+     * @summary Export Failed Records
+     * @description Writes the stored failed-record errors for a job to an ndjson or csv file.
+     * @tag Import Export
+     * @requestBody
+     *   path:string="Output path" {required=path}
+     *   format:string="Output format: ndjson|csv (default: ndjson)"
+     * @response 200 application/json "Failed records exported"
+     * @response 403 "Permission denied (import_export.view)"
+     * @response 404 "Job not found"
+     * @response 422 "Validation failed"
+     */
+    $router->post('/jobs/{uuid}/failed-records/export', [FailedRecordExportController::class, 'export'])
+        ->where('uuid', '[A-Za-z0-9_-]+')
+        ->middleware('import_export_permission:import_export.view')
+        ->name('import_export.jobs.failed_records.export');
 });

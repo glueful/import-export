@@ -12,10 +12,12 @@ use Glueful\Extensions\ImportExport\Console\ExportListCommand;
 use Glueful\Extensions\ImportExport\Console\ImportCreateCommand;
 use Glueful\Extensions\ImportExport\Console\ImportExportCancelCommand;
 use Glueful\Extensions\ImportExport\Console\ImportExportCleanupCommand;
+use Glueful\Extensions\ImportExport\Console\ImportExportFailedRecordsCommand;
 use Glueful\Extensions\ImportExport\Console\ImportExportRetryCommand;
 use Glueful\Extensions\ImportExport\Console\ImportExportStatusCommand;
 use Glueful\Extensions\ImportExport\Console\ImportListCommand;
 use Glueful\Extensions\ImportExport\Http\Controllers\ExportJobController;
+use Glueful\Extensions\ImportExport\Http\Controllers\FailedRecordExportController;
 use Glueful\Extensions\ImportExport\Http\Controllers\ImportExportAdapterController;
 use Glueful\Extensions\ImportExport\Http\Controllers\ImportExportReportController;
 use Glueful\Extensions\ImportExport\Http\Controllers\ImportExportRetryController;
@@ -95,6 +97,7 @@ final class ImportExportServiceProvider extends ServiceProvider
             ImportExportAdapterController::class => self::autowired(ImportExportAdapterController::class),
             ImportJobController::class => self::autowired(ImportJobController::class),
             ExportJobController::class => self::autowired(ExportJobController::class),
+            FailedRecordExportController::class => self::autowired(FailedRecordExportController::class),
             ImportExportReportController::class => self::autowired(ImportExportReportController::class),
             ImportExportRetryController::class => self::autowired(ImportExportRetryController::class),
             ImportListCommand::class => self::autowired(ImportListCommand::class),
@@ -104,6 +107,7 @@ final class ImportExportServiceProvider extends ServiceProvider
             ImportExportStatusCommand::class => self::autowired(ImportExportStatusCommand::class),
             ImportExportCancelCommand::class => self::autowired(ImportExportCancelCommand::class),
             ImportExportCleanupCommand::class => self::autowired(ImportExportCleanupCommand::class),
+            ImportExportFailedRecordsCommand::class => self::autowired(ImportExportFailedRecordsCommand::class),
             ImportExportRetryCommand::class => self::autowired(ImportExportRetryCommand::class),
         ];
     }
