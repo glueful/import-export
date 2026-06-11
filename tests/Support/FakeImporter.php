@@ -21,6 +21,7 @@ class FakeImporter implements ImporterInterface
         private string $key,
         private ?ImportPlan $plan = null,
         private ?ImportBatchResult $batchResult = null,
+        private ?\Throwable $throw = null,
     ) {
     }
 
@@ -46,6 +47,10 @@ class FakeImporter implements ImporterInterface
 
     public function process(ImportBatch $batch, ImportContext $context): ImportBatchResult
     {
+        if ($this->throw !== null) {
+            throw $this->throw;
+        }
+
         $this->processed = true;
         $this->lastMode = $context->mode;
 

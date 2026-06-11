@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Glueful\Extensions\ImportExport\Tests\Unit\Http;
 
 use Glueful\Auth\UserIdentity;
+use Glueful\Events\EventService;
+use Glueful\Events\ListenerProvider;
+use Glueful\Extensions\ImportExport\Events\ImportExportJobCancelled;
 use Glueful\Extensions\ImportExport\Http\Controllers\ImportJobController;
 use Glueful\Extensions\ImportExport\Registry\ExporterRegistry;
 use Glueful\Extensions\ImportExport\Registry\ImporterRegistry;
@@ -18,6 +21,7 @@ use Glueful\Extensions\ImportExport\Support\ImportPlan;
 use Glueful\Extensions\ImportExport\Tests\Support\FakeImporter;
 use Glueful\Extensions\ImportExport\Tests\Support\FakeQueueManager;
 use Glueful\Extensions\ImportExport\Tests\Support\ImportExportTestCase;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\Request;
 
 final class ImportJobControllerTest extends ImportExportTestCase
@@ -46,7 +50,8 @@ final class ImportJobControllerTest extends ImportExportTestCase
 
     public function testStatusErrorsAndCancelEndpointsUseRepositories(): void
     {
-        $controller = $this->controller(new FakeQueueManager());
+        $dispatcher = new ImportJobControllerRecordingDispatcher();
+        $controller = $this->controller(new FakeQueueManager(), new EventService($dispatcher, new ListenerProvider()));
         $job = $this->seedJob(['status' => 'queued', 'type' => 'import', 'adapter' => 'fake']);
         $this->seedBatch(['job_uuid' => $job['uuid']]);
         $errors = new ImportExportErrorRepository($this->connection(), new ImportExportJobRepository($this->connection()));
@@ -60,6 +65,7 @@ final class ImportJobControllerTest extends ImportExportTestCase
         self::assertCount(1, $show['data']['batches']);
         self::assertSame('Bad row', $errorData['data']['errors'][0]['message']);
         self::assertSame('cancelled', $cancel['data']['job']['status']);
+        self::assertInstanceOf(ImportExportJobCancelled::class, $dispatcher->events[0] ?? null);
     }
 
     public function testListCanFilterJobsByTypeAndStatus(): void
@@ -74,7 +80,7 @@ final class ImportJobControllerTest extends ImportExportTestCase
         self::assertSame('import', $data['data']['jobs'][0]['type']);
     }
 
-    private function controller(FakeQueueManager $queue): ImportJobController
+    private function controller(FakeQueueManager $queue, ?EventService $events = null): ImportJobController
     {
         $jobs = new ImportExportJobRepository($this->connection());
         $batches = new ImportExportBatchRepository($this->connection());
@@ -95,7 +101,8 @@ final class ImportJobControllerTest extends ImportExportTestCase
             ),
             $jobs,
             $batches,
-            $errors
+            $errors,
+            $events
         );
     }
 
@@ -119,5 +126,18 @@ final class ImportJobControllerTest extends ImportExportTestCase
         $decoded = json_decode((string) $response->getContent(), true);
 
         return is_array($decoded) ? $decoded : [];
+    }
+}
+
+final class ImportJobControllerRecordingDispatcher implements EventDispatcherInterface
+{
+    /** @var list<object> */
+    public array $events = [];
+
+    public function dispatch(object $event): object
+    {
+        $this->events[] = $event;
+
+        return $event;
     }
 }

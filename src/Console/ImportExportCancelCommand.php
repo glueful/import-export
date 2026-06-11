@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Glueful\Extensions\ImportExport\Console;
 
 use Glueful\Console\BaseCommand;
+use Glueful\Events\EventService;
+use Glueful\Extensions\ImportExport\Events\ImportExportJobCancelled;
 use Glueful\Extensions\ImportExport\Repositories\ImportExportJobRepository;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Input\InputArgument;
@@ -24,7 +26,21 @@ final class ImportExportCancelCommand extends BaseCommand
         $uuid = (string) $input->getArgument('job');
 
         try {
-            $this->getService(ImportExportJobRepository::class)->cancel($uuid);
+            $jobs = $this->getService(ImportExportJobRepository::class);
+            $job = $jobs->find($uuid);
+            if ($job === null) {
+                throw new \RuntimeException('Import/export job not found.');
+            }
+
+            $jobs->cancel($uuid);
+            if ($this->getContainer()->has(EventService::class)) {
+                $this->getService(EventService::class)->dispatch(new ImportExportJobCancelled(
+                    $uuid,
+                    (string) $job['type'],
+                    (string) $job['adapter']
+                ));
+            }
+
             $this->success(sprintf('Import/export job cancelled: %s', $uuid));
 
             return self::SUCCESS;

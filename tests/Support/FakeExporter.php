@@ -13,8 +13,11 @@ use Glueful\Extensions\ImportExport\Support\ExportPlan;
 
 final class FakeExporter implements ExporterInterface
 {
-    public function __construct(private string $key, private ?ExportPlan $plan = null)
-    {
+    public function __construct(
+        private string $key,
+        private ?ExportPlan $plan = null,
+        private ?\Throwable $throw = null,
+    ) {
     }
 
     public function key(): string
@@ -34,6 +37,10 @@ final class FakeExporter implements ExporterInterface
 
     public function process(ExportBatch $batch, ExportContext $context): ExportBatchResult
     {
+        if ($this->throw !== null) {
+            throw $this->throw;
+        }
+
         return new ExportBatchResult(0, 0, [], null);
     }
 }

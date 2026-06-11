@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Glueful\Extensions\ImportExport\Http\Controllers;
 
 use Glueful\Auth\UserIdentity;
+use Glueful\Events\EventService;
+use Glueful\Extensions\ImportExport\Events\ImportExportJobCancelled;
 use Glueful\Extensions\ImportExport\Repositories\ImportExportBatchRepository;
 use Glueful\Extensions\ImportExport\Repositories\ImportExportErrorRepository;
 use Glueful\Extensions\ImportExport\Repositories\ImportExportJobRepository;
@@ -21,6 +23,7 @@ final class ImportJobController
         private ImportExportJobRepository $jobs,
         private ImportExportBatchRepository $batches,
         private ImportExportErrorRepository $errors,
+        private ?EventService $events = null,
     ) {
     }
 
@@ -90,7 +93,17 @@ final class ImportJobController
     public function cancel(Request $request, string $uuid): Response
     {
         try {
+            $job = $this->jobs->find($uuid);
+            if ($job === null) {
+                return Response::notFound('Import/export job not found.');
+            }
+
             $this->jobs->cancel($uuid);
+            $this->events?->dispatch(new ImportExportJobCancelled(
+                $uuid,
+                (string) $job['type'],
+                (string) $job['adapter']
+            ));
 
             return Response::success(['job' => $this->jobs->find($uuid)], 'Import/export job cancelled.');
         } catch (\RuntimeException) {

@@ -5,6 +5,12 @@ declare(strict_types=1);
 namespace Glueful\Extensions\ImportExport\Services;
 
 use Glueful\Bootstrap\ApplicationContext;
+use Glueful\Events\EventService;
+use Glueful\Extensions\ImportExport\Events\ImportExportBatchCompleted;
+use Glueful\Extensions\ImportExport\Events\ImportExportBatchFailed;
+use Glueful\Extensions\ImportExport\Events\ImportExportJobCompleted;
+use Glueful\Extensions\ImportExport\Events\ImportExportJobFailed;
+use Glueful\Extensions\ImportExport\Events\ImportExportJobStarted;
 use Glueful\Extensions\ImportExport\Registry\ExporterRegistry;
 use Glueful\Extensions\ImportExport\Registry\ImporterRegistry;
 use Glueful\Extensions\ImportExport\Repositories\ImportExportBatchRepository;
@@ -26,6 +32,7 @@ class BatchRunner
         private ImportExportBatchRepository $batches,
         private ImportExportErrorRepository $errors,
         private ImportExportFileRepository $files,
+        private ?EventService $events = null,
     ) {
     }
 
@@ -51,28 +58,34 @@ class BatchRunner
 
         $this->markRunning($job);
 
-        $importer = $this->importers->get((string) $job['adapter']);
-        $result = $importer->process(
-            new ImportBatch(
-                uuid: (string) $batchRow['uuid'],
-                jobUuid: (string) $batchRow['job_uuid'],
-                sequence: (int) $batchRow['sequence'],
-                offset: (int) $batchRow['offset'],
-                limit: (int) $batchRow['limit'],
-            ),
-            new ImportContext(
-                app: $this->context,
-                jobUuid: (string) $job['uuid'],
-                mode: (string) $job['mode'],
-                actorUuid: $job['created_by'] ?? null,
-            )
-        );
+        try {
+            $importer = $this->importers->get((string) $job['adapter']);
+            $result = $importer->process(
+                new ImportBatch(
+                    uuid: (string) $batchRow['uuid'],
+                    jobUuid: (string) $batchRow['job_uuid'],
+                    sequence: (int) $batchRow['sequence'],
+                    offset: (int) $batchRow['offset'],
+                    limit: (int) $batchRow['limit'],
+                ),
+                new ImportContext(
+                    app: $this->context,
+                    jobUuid: (string) $job['uuid'],
+                    mode: (string) $job['mode'],
+                    actorUuid: $job['created_by'] ?? null,
+                )
+            );
+        } catch (\Throwable $e) {
+            $this->failClaimedBatch($job, $batchUuid, $e);
+            return;
+        }
 
         foreach ($result->errors as $error) {
             $this->errors->record((string) $job['uuid'], $batchUuid, $error);
         }
 
         $this->batches->complete($batchUuid, $result->processedRecords, $result->failedRecords);
+        $this->dispatchBatchFinished($job, $batchUuid, $result->failedRecords, 'Batch completed with failed records.');
         $this->rollUpJob((string) $job['uuid']);
     }
 
@@ -98,22 +111,27 @@ class BatchRunner
 
         $this->markRunning($job);
 
-        $exporter = $this->exporters->get((string) $job['adapter']);
-        $result = $exporter->process(
-            new ExportBatch(
-                uuid: (string) $batchRow['uuid'],
-                jobUuid: (string) $batchRow['job_uuid'],
-                sequence: (int) $batchRow['sequence'],
-                offset: (int) $batchRow['offset'],
-                limit: (int) $batchRow['limit'],
-            ),
-            new ExportContext(
-                app: $this->context,
-                jobUuid: (string) $job['uuid'],
-                format: 'ndjson',
-                actorUuid: $job['created_by'] ?? null,
-            )
-        );
+        try {
+            $exporter = $this->exporters->get((string) $job['adapter']);
+            $result = $exporter->process(
+                new ExportBatch(
+                    uuid: (string) $batchRow['uuid'],
+                    jobUuid: (string) $batchRow['job_uuid'],
+                    sequence: (int) $batchRow['sequence'],
+                    offset: (int) $batchRow['offset'],
+                    limit: (int) $batchRow['limit'],
+                ),
+                new ExportContext(
+                    app: $this->context,
+                    jobUuid: (string) $job['uuid'],
+                    format: 'ndjson',
+                    actorUuid: $job['created_by'] ?? null,
+                )
+            );
+        } catch (\Throwable $e) {
+            $this->failClaimedBatch($job, $batchUuid, $e);
+            return;
+        }
 
         foreach ($result->errors as $error) {
             $this->errors->record((string) $job['uuid'], $batchUuid, $error);
@@ -129,6 +147,7 @@ class BatchRunner
         }
 
         $this->batches->complete($batchUuid, $result->processedRecords, $result->failedRecords);
+        $this->dispatchBatchFinished($job, $batchUuid, $result->failedRecords, 'Batch completed with failed records.');
         $this->rollUpJob((string) $job['uuid']);
     }
 
@@ -137,7 +156,56 @@ class BatchRunner
     {
         if (in_array($job['status'], ['planning', 'queued'], true)) {
             $this->jobs->transition((string) $job['uuid'], 'running');
+            $this->events?->dispatch(new ImportExportJobStarted(
+                (string) $job['uuid'],
+                (string) $job['type'],
+                (string) $job['adapter'],
+            ));
         }
+    }
+
+    /** @param array<string,mixed> $job */
+    private function failClaimedBatch(array $job, string $batchUuid, \Throwable $e): void
+    {
+        $this->errors->record((string) $job['uuid'], $batchUuid, [
+            'severity' => 'error',
+            'code' => 'adapter_exception',
+            'message' => $e->getMessage(),
+            'context' => [
+                'exception' => $e::class,
+            ],
+        ]);
+        $this->batches->complete($batchUuid, 0, 1);
+        $this->events?->dispatch(new ImportExportBatchFailed(
+            (string) $job['uuid'],
+            $batchUuid,
+            (string) $job['type'],
+            (string) $job['adapter'],
+            $e->getMessage(),
+        ));
+        $this->rollUpJob((string) $job['uuid']);
+    }
+
+    /** @param array<string,mixed> $job */
+    private function dispatchBatchFinished(array $job, string $batchUuid, int $failedRecords, string $reason): void
+    {
+        if ($failedRecords > 0) {
+            $this->events?->dispatch(new ImportExportBatchFailed(
+                (string) $job['uuid'],
+                $batchUuid,
+                (string) $job['type'],
+                (string) $job['adapter'],
+                $reason,
+            ));
+            return;
+        }
+
+        $this->events?->dispatch(new ImportExportBatchCompleted(
+            (string) $job['uuid'],
+            $batchUuid,
+            (string) $job['type'],
+            (string) $job['adapter'],
+        ));
     }
 
     private function rollUpJob(string $jobUuid): void
@@ -165,6 +233,27 @@ class BatchRunner
             return;
         }
 
-        $this->jobs->transition($jobUuid, $failed > 0 ? 'failed' : 'completed');
+        $toStatus = $failed > 0 ? 'failed' : 'completed';
+        $this->jobs->transition($jobUuid, $toStatus);
+        $updatedJob = $this->jobs->find($jobUuid);
+        if ($updatedJob === null) {
+            return;
+        }
+
+        if ($toStatus === 'failed') {
+            $this->events?->dispatch(new ImportExportJobFailed(
+                $jobUuid,
+                (string) $updatedJob['type'],
+                (string) $updatedJob['adapter'],
+                'One or more batches failed.',
+            ));
+            return;
+        }
+
+        $this->events?->dispatch(new ImportExportJobCompleted(
+            $jobUuid,
+            (string) $updatedJob['type'],
+            (string) $updatedJob['adapter'],
+        ));
     }
 }
