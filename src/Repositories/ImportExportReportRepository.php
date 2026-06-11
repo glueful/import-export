@@ -29,4 +29,14 @@ final class ImportExportReportRepository
 
         return $row;
     }
+
+    /** @return array<string,mixed>|null */
+    public function latestForJob(string $jobUuid): ?array
+    {
+        return $this->connection
+            ->table('import_export_reports')
+            ->where('job_uuid', '=', $jobUuid)
+            ->orderBy('id', 'DESC')
+            ->first();
+    }
 }

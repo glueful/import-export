@@ -96,6 +96,16 @@ final class ImportExportBatchRepository
             ->get();
     }
 
+    /** @return list<array<string,mixed>> */
+    public function forJob(string $jobUuid): array
+    {
+        return $this->connection
+            ->table('import_export_batches')
+            ->where('job_uuid', '=', $jobUuid)
+            ->orderBy('sequence')
+            ->get();
+    }
+
     public function resetForRetry(string $uuid): void
     {
         $this->connection

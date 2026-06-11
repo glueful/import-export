@@ -57,6 +57,25 @@ final class ImportExportJobRepository
             ->first();
     }
 
+    /** @return list<array<string,mixed>> */
+    public function list(?string $type = null, ?string $status = null, int $limit = 50): array
+    {
+        $query = $this->connection
+            ->table('import_export_jobs')
+            ->orderBy('id', 'DESC')
+            ->limit($limit);
+
+        if ($type !== null && $type !== '') {
+            $query->where('type', '=', $type);
+        }
+
+        if ($status !== null && $status !== '') {
+            $query->where('status', '=', $status);
+        }
+
+        return $query->get();
+    }
+
     public function transition(string $uuid, string $toStatus): void
     {
         $job = $this->find($uuid);
@@ -90,6 +109,11 @@ final class ImportExportJobRepository
             ->table('import_export_jobs')
             ->where('uuid', '=', $uuid)
             ->update($updates);
+    }
+
+    public function cancel(string $uuid): void
+    {
+        $this->transition($uuid, 'cancelled');
     }
 
     public function incrementErrorOverflow(string $uuid, int $by = 1): void

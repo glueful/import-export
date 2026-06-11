@@ -8,9 +8,22 @@ use Glueful\Bootstrap\ApplicationContext;
 use Glueful\Container\Definition\FactoryDefinition;
 use Glueful\Database\Migrations\MigrationPriority;
 use Glueful\Events\EventService;
+use Glueful\Extensions\ImportExport\Console\ExportCreateCommand;
+use Glueful\Extensions\ImportExport\Console\ExportListCommand;
+use Glueful\Extensions\ImportExport\Console\ImportCreateCommand;
+use Glueful\Extensions\ImportExport\Console\ImportExportCancelCommand;
+use Glueful\Extensions\ImportExport\Console\ImportExportCleanupCommand;
 use Glueful\Extensions\ImportExport\Console\ImportExportRetryCommand;
+use Glueful\Extensions\ImportExport\Console\ImportExportStatusCommand;
+use Glueful\Extensions\ImportExport\Console\ImportListCommand;
+use Glueful\Extensions\ImportExport\Http\Controllers\ExportJobController;
+use Glueful\Extensions\ImportExport\Http\Controllers\ImportExportAdapterController;
+use Glueful\Extensions\ImportExport\Http\Controllers\ImportExportReportController;
 use Glueful\Extensions\ImportExport\Http\Controllers\ImportExportRetryController;
+use Glueful\Extensions\ImportExport\Http\Controllers\ImportJobController;
 use Glueful\Extensions\ImportExport\Http\RequireImportExportPermission;
+use Glueful\Extensions\ImportExport\Jobs\ProcessExportBatchJob;
+use Glueful\Extensions\ImportExport\Jobs\ProcessImportBatchJob;
 use Glueful\Extensions\ImportExport\Registry\ExporterRegistry;
 use Glueful\Extensions\ImportExport\Registry\ImporterRegistry;
 use Glueful\Extensions\ImportExport\Repositories\ImportExportBatchRepository;
@@ -116,13 +129,26 @@ final class ImportExportServiceProvider extends ServiceProvider
             ReportBuilder::class => ['class' => ReportBuilder::class, 'shared' => true, 'autowire' => true],
             FailedRecordExporter::class => ['class' => FailedRecordExporter::class, 'shared' => true, 'autowire' => true],
             RetentionCleaner::class => ['class' => RetentionCleaner::class, 'shared' => true, 'autowire' => true],
+            ProcessImportBatchJob::class => ['class' => ProcessImportBatchJob::class, 'shared' => false, 'autowire' => true],
+            ProcessExportBatchJob::class => ['class' => ProcessExportBatchJob::class, 'shared' => false, 'autowire' => true],
             RequireImportExportPermission::class => [
                 'class' => RequireImportExportPermission::class,
                 'shared' => true,
                 'autowire' => true,
                 'alias' => ['import_export_permission'],
             ],
+            ImportExportAdapterController::class => ['class' => ImportExportAdapterController::class, 'shared' => true, 'autowire' => true],
+            ImportJobController::class => ['class' => ImportJobController::class, 'shared' => true, 'autowire' => true],
+            ExportJobController::class => ['class' => ExportJobController::class, 'shared' => true, 'autowire' => true],
+            ImportExportReportController::class => ['class' => ImportExportReportController::class, 'shared' => true, 'autowire' => true],
             ImportExportRetryController::class => ['class' => ImportExportRetryController::class, 'shared' => true, 'autowire' => true],
+            ImportListCommand::class => ['class' => ImportListCommand::class, 'shared' => true, 'autowire' => true],
+            ImportCreateCommand::class => ['class' => ImportCreateCommand::class, 'shared' => true, 'autowire' => true],
+            ExportListCommand::class => ['class' => ExportListCommand::class, 'shared' => true, 'autowire' => true],
+            ExportCreateCommand::class => ['class' => ExportCreateCommand::class, 'shared' => true, 'autowire' => true],
+            ImportExportStatusCommand::class => ['class' => ImportExportStatusCommand::class, 'shared' => true, 'autowire' => true],
+            ImportExportCancelCommand::class => ['class' => ImportExportCancelCommand::class, 'shared' => true, 'autowire' => true],
+            ImportExportCleanupCommand::class => ['class' => ImportExportCleanupCommand::class, 'shared' => true, 'autowire' => true],
             ImportExportRetryCommand::class => ['class' => ImportExportRetryCommand::class, 'shared' => true, 'autowire' => true],
         ];
     }
@@ -155,7 +181,9 @@ final class ImportExportServiceProvider extends ServiceProvider
     public function boot(ApplicationContext $context): void
     {
         $this->discoverCommands('Glueful\\Extensions\\ImportExport\\Console', __DIR__ . '/Console');
-        $this->loadRoutesFrom(__DIR__ . '/../routes/routes.php');
+        if ((bool) config($context, 'import_export.routes_enabled', true)) {
+            $this->loadRoutesFrom(__DIR__ . '/../routes/routes.php');
+        }
     }
 
     public function permissions(): array

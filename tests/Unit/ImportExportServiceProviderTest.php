@@ -5,6 +5,22 @@ declare(strict_types=1);
 namespace Glueful\Extensions\ImportExport\Tests\Unit;
 
 use Glueful\Extensions\ImportExport\ImportExportServiceProvider;
+use Glueful\Extensions\ImportExport\Console\ExportCreateCommand;
+use Glueful\Extensions\ImportExport\Console\ExportListCommand;
+use Glueful\Extensions\ImportExport\Console\ImportCreateCommand;
+use Glueful\Extensions\ImportExport\Console\ImportExportCancelCommand;
+use Glueful\Extensions\ImportExport\Console\ImportExportCleanupCommand;
+use Glueful\Extensions\ImportExport\Console\ImportExportRetryCommand;
+use Glueful\Extensions\ImportExport\Console\ImportExportStatusCommand;
+use Glueful\Extensions\ImportExport\Console\ImportListCommand;
+use Glueful\Extensions\ImportExport\Http\Controllers\ExportJobController;
+use Glueful\Extensions\ImportExport\Http\Controllers\ImportExportAdapterController;
+use Glueful\Extensions\ImportExport\Http\Controllers\ImportExportReportController;
+use Glueful\Extensions\ImportExport\Http\Controllers\ImportExportRetryController;
+use Glueful\Extensions\ImportExport\Http\Controllers\ImportJobController;
+use Glueful\Extensions\ImportExport\Http\RequireImportExportPermission;
+use Glueful\Extensions\ImportExport\Jobs\ProcessExportBatchJob;
+use Glueful\Extensions\ImportExport\Jobs\ProcessImportBatchJob;
 use Glueful\Extensions\ImportExport\Registry\ExporterRegistry;
 use Glueful\Extensions\ImportExport\Registry\ImporterRegistry;
 use Glueful\Extensions\ImportExport\Tests\Support\FakeExporter;
@@ -20,8 +36,28 @@ final class ImportExportServiceProviderTest extends ImportExportTestCase
 
         self::assertArrayHasKey(ImporterRegistry::class, $services);
         self::assertArrayHasKey(ExporterRegistry::class, $services);
-        self::assertArrayHasKey('alias', $services[\Glueful\Extensions\ImportExport\Http\RequireImportExportPermission::class]);
-        self::assertContains('import_export_permission', $services[\Glueful\Extensions\ImportExport\Http\RequireImportExportPermission::class]['alias']);
+        self::assertArrayHasKey('alias', $services[RequireImportExportPermission::class]);
+        self::assertContains('import_export_permission', $services[RequireImportExportPermission::class]['alias']);
+
+        foreach ([
+            ProcessImportBatchJob::class,
+            ProcessExportBatchJob::class,
+            ImportExportAdapterController::class,
+            ImportJobController::class,
+            ExportJobController::class,
+            ImportExportReportController::class,
+            ImportExportRetryController::class,
+            ImportListCommand::class,
+            ImportCreateCommand::class,
+            ExportListCommand::class,
+            ExportCreateCommand::class,
+            ImportExportStatusCommand::class,
+            ImportExportCancelCommand::class,
+            ImportExportCleanupCommand::class,
+            ImportExportRetryCommand::class,
+        ] as $serviceId) {
+            self::assertArrayHasKey($serviceId, $services);
+        }
     }
 
     public function testProviderDeclaresImportExportPermissions(): void
