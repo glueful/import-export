@@ -19,4 +19,4 @@ All notable changes to `glueful/import-export` will be documented in this file.
 - CLI commands for import/export list and run, status, retry, cancel, and cleanup.
 - Report builder, failed-record exporter, and retention cleaner.
 - Complete fake adapter flow tests for imports and exports.
-- Standard extension README and adapter documentation.
+- Standard extension README with inline usage, security, and adapter documentation.

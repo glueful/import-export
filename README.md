@@ -96,9 +96,52 @@ Configuration is loaded from `config/import_export.php` and merged under the `im
 | `error_cap_per_severity` | Stored error cap before overflow counting starts. |
 | `stale_lock_minutes` | Batch lock staleness window. |
 
-## Adapter Boundary
+## Adapters
 
 This extension does not know your domain model. A CMS, commerce app, or back office system should implement its own adapters for WordPress, Markdown, products, customers, orders, or other domain records.
+
+Import/export adapters are domain-owned integrations that plug into this package's engine. The engine owns orchestration; adapters own domain translation.
+
+### Engine Responsibilities
+
+- Register importers and exporters through service tags.
+- Create jobs, batches, file records, errors, and reports.
+- Queue batch jobs.
+- Claim batches atomically before processing.
+- Prevent queue auto-retry from becoming the retry policy.
+- Record adapter-reported errors with the configured per-severity cap.
+- Roll batch progress up to the parent job.
+- Stop processing cancelled jobs.
+- Expose HTTP and CLI management APIs.
+
+### Adapter Responsibilities
+
+Importers implement `ImporterInterface`:
+
+- `key()` returns a stable machine key.
+- `label()` returns a human-readable label.
+- `supports()` checks whether the provided source can be imported.
+- `plan()` inspects the source and returns total records plus deterministic batches.
+- `process()` handles one claimed batch and returns processed/failed counts plus row errors.
+
+Exporters implement `ExporterInterface`:
+
+- `key()` returns a stable machine key.
+- `label()` returns a human-readable label.
+- `plan()` returns total records plus deterministic batches.
+- `process()` handles one claimed batch and returns processed/failed counts, errors, and optionally a result path.
+
+Adapters should not create jobs, mutate engine tables directly, dispatch queue jobs, or decide global retry behavior.
+
+### Retry And Idempotency
+
+Retry is explicit and engine-owned. Queue jobs catch failures and return without throwing, so the queue worker does not redeliver non-idempotent batches automatically.
+
+Adapters that support explicit retry must implement `RetryableAdapterInterface` and return `true` from `retryable()`.
+
+Retryable adapters should make `process()` idempotent per batch or safely detect already-applied records. Non-idempotent adapters should not implement the retry capability.
+
+### Service Tags
 
 Adapters are collected through tagged services:
 
@@ -113,7 +156,7 @@ return [
 ];
 ```
 
-Use `import_export.exporter` for exporters. See [Adapter Guide](docs/adapters.md).
+Use `import_export.exporter` for exporters.
 
 ## Usage
 
