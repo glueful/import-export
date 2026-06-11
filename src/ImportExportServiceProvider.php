@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Glueful\Extensions\ImportExport;
 
 use Glueful\Bootstrap\ApplicationContext;
-use Glueful\Container\Definition\FactoryDefinition;
 use Glueful\Database\Migrations\MigrationPriority;
 use Glueful\Events\EventService;
 use Glueful\Extensions\ImportExport\Console\ExportCreateCommand;
@@ -60,72 +59,28 @@ final class ImportExportServiceProvider extends ServiceProvider
     public static function services(): array
     {
         return [
-            ImporterRegistry::class => new FactoryDefinition(
-                ImporterRegistry::class,
-                static function (ContainerInterface $c): ImporterRegistry {
-                    $importers = $c->has('import_export.importer')
-                        ? $c->get('import_export.importer')
-                        : [];
-
-                    if ($importers instanceof \Traversable) {
-                        $importers = iterator_to_array($importers);
-                    }
-
-                    return new ImporterRegistry((array) $importers);
-                }
-            ),
-            ExporterRegistry::class => new FactoryDefinition(
-                ExporterRegistry::class,
-                static function (ContainerInterface $c): ExporterRegistry {
-                    $exporters = $c->has('import_export.exporter')
-                        ? $c->get('import_export.exporter')
-                        : [];
-
-                    if ($exporters instanceof \Traversable) {
-                        $exporters = iterator_to_array($exporters);
-                    }
-
-                    return new ExporterRegistry((array) $exporters);
-                }
-            ),
+            ImporterRegistry::class => [
+                'factory' => [self::class, 'makeImporterRegistry'],
+                'shared' => true,
+            ],
+            ExporterRegistry::class => [
+                'factory' => [self::class, 'makeExporterRegistry'],
+                'shared' => true,
+            ],
             ImportExportJobRepository::class => self::autowired(ImportExportJobRepository::class),
             ImportExportBatchRepository::class => self::autowired(ImportExportBatchRepository::class),
             ImportExportFileRepository::class => self::autowired(ImportExportFileRepository::class),
             ImportExportReportRepository::class => self::autowired(ImportExportReportRepository::class),
             ImportExportErrorRepository::class => self::autowired(ImportExportErrorRepository::class),
-            ImportExportService::class => new FactoryDefinition(
-                ImportExportService::class,
-                static function (ContainerInterface $c): ImportExportService {
-                    $context = $c->get(ApplicationContext::class);
-
-                    return new ImportExportService(
-                        $c->get(ImporterRegistry::class),
-                        $c->get(ExporterRegistry::class),
-                        $c->get(ImportExportJobRepository::class),
-                        $c->get(ImportExportBatchRepository::class),
-                        $c->get(ImportExportFileRepository::class),
-                        $c->get(QueueManager::class),
-                        (string) config($context, 'import_export.queue', 'import-export'),
-                        $c->has(EventService::class) ? $c->get(EventService::class) : null,
-                    );
-                }
-            ),
+            ImportExportService::class => [
+                'factory' => [self::class, 'makeImportExportService'],
+                'shared' => true,
+            ],
             BatchRunner::class => self::autowired(BatchRunner::class),
-            RetryService::class => new FactoryDefinition(
-                RetryService::class,
-                static function (ContainerInterface $c): RetryService {
-                    $context = $c->get(ApplicationContext::class);
-
-                    return new RetryService(
-                        $c->get(ImporterRegistry::class),
-                        $c->get(ExporterRegistry::class),
-                        $c->get(ImportExportJobRepository::class),
-                        $c->get(ImportExportBatchRepository::class),
-                        $c->get(QueueManager::class),
-                        (string) config($context, 'import_export.queue', 'import-export'),
-                    );
-                }
-            ),
+            RetryService::class => [
+                'factory' => [self::class, 'makeRetryService'],
+                'shared' => true,
+            ],
             ReportBuilder::class => self::autowired(ReportBuilder::class),
             FailedRecordExporter::class => self::autowired(FailedRecordExporter::class),
             RetentionCleaner::class => self::autowired(RetentionCleaner::class),
@@ -151,6 +106,62 @@ final class ImportExportServiceProvider extends ServiceProvider
             ImportExportCleanupCommand::class => self::autowired(ImportExportCleanupCommand::class),
             ImportExportRetryCommand::class => self::autowired(ImportExportRetryCommand::class),
         ];
+    }
+
+    public static function makeImporterRegistry(ContainerInterface $c): ImporterRegistry
+    {
+        $importers = $c->has('import_export.importer')
+            ? $c->get('import_export.importer')
+            : [];
+
+        if ($importers instanceof \Traversable) {
+            $importers = iterator_to_array($importers);
+        }
+
+        return new ImporterRegistry((array) $importers);
+    }
+
+    public static function makeExporterRegistry(ContainerInterface $c): ExporterRegistry
+    {
+        $exporters = $c->has('import_export.exporter')
+            ? $c->get('import_export.exporter')
+            : [];
+
+        if ($exporters instanceof \Traversable) {
+            $exporters = iterator_to_array($exporters);
+        }
+
+        return new ExporterRegistry((array) $exporters);
+    }
+
+    public static function makeImportExportService(ContainerInterface $c): ImportExportService
+    {
+        $context = $c->get(ApplicationContext::class);
+
+        return new ImportExportService(
+            $c->get(ImporterRegistry::class),
+            $c->get(ExporterRegistry::class),
+            $c->get(ImportExportJobRepository::class),
+            $c->get(ImportExportBatchRepository::class),
+            $c->get(ImportExportFileRepository::class),
+            $c->get(QueueManager::class),
+            (string) config($context, 'import_export.queue', 'import-export'),
+            $c->has(EventService::class) ? $c->get(EventService::class) : null,
+        );
+    }
+
+    public static function makeRetryService(ContainerInterface $c): RetryService
+    {
+        $context = $c->get(ApplicationContext::class);
+
+        return new RetryService(
+            $c->get(ImporterRegistry::class),
+            $c->get(ExporterRegistry::class),
+            $c->get(ImportExportJobRepository::class),
+            $c->get(ImportExportBatchRepository::class),
+            $c->get(QueueManager::class),
+            (string) config($context, 'import_export.queue', 'import-export'),
+        );
     }
 
     /**

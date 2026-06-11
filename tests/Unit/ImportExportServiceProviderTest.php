@@ -13,6 +13,8 @@ use Glueful\Extensions\ImportExport\Console\ImportExportCleanupCommand;
 use Glueful\Extensions\ImportExport\Console\ImportExportRetryCommand;
 use Glueful\Extensions\ImportExport\Console\ImportExportStatusCommand;
 use Glueful\Extensions\ImportExport\Console\ImportListCommand;
+use Glueful\Container\Definition\FactoryDefinition;
+use Glueful\Container\Loader\DefaultServicesLoader;
 use Glueful\Extensions\ImportExport\Http\Controllers\ExportJobController;
 use Glueful\Extensions\ImportExport\Http\Controllers\ImportExportAdapterController;
 use Glueful\Extensions\ImportExport\Http\Controllers\ImportExportReportController;
@@ -36,6 +38,10 @@ final class ImportExportServiceProviderTest extends ImportExportTestCase
 
         self::assertArrayHasKey(ImporterRegistry::class, $services);
         self::assertArrayHasKey(ExporterRegistry::class, $services);
+        foreach ([ImporterRegistry::class, ExporterRegistry::class] as $factoryId) {
+            self::assertIsArray($services[$factoryId]);
+            self::assertArrayHasKey('factory', $services[$factoryId]);
+        }
         self::assertArrayHasKey('alias', $services[RequireImportExportPermission::class]);
         self::assertContains('import_export_permission', $services[RequireImportExportPermission::class]['alias']);
 
@@ -58,6 +64,40 @@ final class ImportExportServiceProviderTest extends ImportExportTestCase
         ] as $serviceId) {
             self::assertArrayHasKey($serviceId, $services);
         }
+    }
+
+    public function testServicesLoadThroughRealDefaultServicesLoaderInProductionMode(): void
+    {
+        $definitions = (new DefaultServicesLoader())->load(
+            ImportExportServiceProvider::services(),
+            ImportExportServiceProvider::class,
+            prod: true
+        );
+
+        foreach ([
+            ImporterRegistry::class,
+            ExporterRegistry::class,
+            \Glueful\Extensions\ImportExport\Services\ImportExportService::class,
+            \Glueful\Extensions\ImportExport\Services\RetryService::class,
+        ] as $serviceId) {
+            self::assertInstanceOf(FactoryDefinition::class, $definitions[$serviceId] ?? null);
+        }
+
+        self::assertArrayHasKey(RequireImportExportPermission::class, $definitions);
+        self::assertArrayHasKey('import_export_permission', $definitions);
+    }
+
+    public function testRealDefaultServicesLoaderRejectsClosureFactoriesInProductionMode(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('factory closure not allowed in production');
+
+        (new DefaultServicesLoader())->load([
+            'bad.factory' => [
+                'factory' => static fn(): object => new \stdClass(),
+                'shared' => true,
+            ],
+        ], ImportExportServiceProvider::class, prod: true);
     }
 
     public function testProviderDeclaresImportExportPermissions(): void
@@ -83,7 +123,14 @@ final class ImportExportServiceProviderTest extends ImportExportTestCase
         $importer = new FakeImporter('fake');
         $this->bind('import_export.importer', [$importer]);
 
-        $definition = ImportExportServiceProvider::services()[ImporterRegistry::class];
+        $definitions = (new DefaultServicesLoader())->load(
+            ImportExportServiceProvider::services(),
+            ImportExportServiceProvider::class,
+            prod: true
+        );
+
+        /** @var FactoryDefinition $definition */
+        $definition = $definitions[ImporterRegistry::class];
         $registry = $definition->resolve($this->appContext()->getContainer());
 
         self::assertSame($importer, $registry->get('fake'));
@@ -94,7 +141,14 @@ final class ImportExportServiceProviderTest extends ImportExportTestCase
         $exporter = new FakeExporter('fake');
         $this->bind('import_export.exporter', [$exporter]);
 
-        $definition = ImportExportServiceProvider::services()[ExporterRegistry::class];
+        $definitions = (new DefaultServicesLoader())->load(
+            ImportExportServiceProvider::services(),
+            ImportExportServiceProvider::class,
+            prod: true
+        );
+
+        /** @var FactoryDefinition $definition */
+        $definition = $definitions[ExporterRegistry::class];
         $registry = $definition->resolve($this->appContext()->getContainer());
 
         self::assertSame($exporter, $registry->get('fake'));
