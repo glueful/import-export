@@ -406,7 +406,7 @@ contexts.
 ## Requirements
 
 - PHP 8.3 or higher
-- Glueful 1.54.0 or higher
+- Glueful 1.55.0 or higher
 - A configured queue worker for asynchronous batch processing
 
 ## License

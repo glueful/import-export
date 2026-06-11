@@ -9,7 +9,7 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 First release. A domain-blind **import/export engine** for Glueful: the engine owns
 jobs, batches, queueing, claiming, errors, reports, and retries, while domain adapters
 (registered through service tags) own what records mean. Requires
-`glueful/framework >= 1.54.0` and a running queue worker.
+`glueful/framework >= 1.55.0` and a running queue worker.
 
 ### Added
 
