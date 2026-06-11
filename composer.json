@@ -54,7 +54,7 @@
             "name": "Import Export",
             "displayName": "Import Export",
             "description": "Import and export engine for Glueful apps.",
-            "version": "0.1.0",
+            "version": "1.0.0",
             "categories": [
                 "data",
                 "operations"
