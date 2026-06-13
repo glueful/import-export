@@ -18,6 +18,7 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 - Escape spreadsheet formula-like CSV values and reject null bytes in guarded relative paths.
 - Store generic adapter exception messages for failed batches instead of persisting raw exception text.
 - Add a pre-read size limit to the JSON file reader.
+- Add cascade foreign keys between import/export jobs and their batch, file, error, and report rows in the base schema.
 
 ## [1.0.0] - 2026-06-11
 

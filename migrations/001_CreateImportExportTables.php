@@ -98,6 +98,10 @@ final class CreateImportExportTables implements MigrationInterface
             $table->unique(['job_uuid', 'sequence'], 'uniq_import_export_batch_sequence');
             $table->index(['job_uuid', 'status', 'sequence'], 'idx_import_export_batch_job_status');
             $table->index('locked_at');
+            $table->foreign('job_uuid')
+                ->references('uuid')
+                ->on('import_export_jobs')
+                ->cascadeOnDelete();
         });
     }
 
@@ -122,6 +126,10 @@ final class CreateImportExportTables implements MigrationInterface
             $table->unique('uuid');
             $table->index('job_uuid');
             $table->index('role');
+            $table->foreign('job_uuid')
+                ->references('uuid')
+                ->on('import_export_jobs')
+                ->cascadeOnDelete();
         });
     }
 
@@ -147,6 +155,14 @@ final class CreateImportExportTables implements MigrationInterface
             $table->index('job_uuid');
             $table->index('batch_uuid');
             $table->index('severity');
+            $table->foreign('job_uuid')
+                ->references('uuid')
+                ->on('import_export_jobs')
+                ->cascadeOnDelete();
+            $table->foreign('batch_uuid')
+                ->references('uuid')
+                ->on('import_export_batches')
+                ->cascadeOnDelete();
         });
     }
 
@@ -169,6 +185,10 @@ final class CreateImportExportTables implements MigrationInterface
 
             $table->unique('uuid');
             $table->unique('job_uuid');
+            $table->foreign('job_uuid')
+                ->references('uuid')
+                ->on('import_export_jobs')
+                ->cascadeOnDelete();
         });
     }
 }
