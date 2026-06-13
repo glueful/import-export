@@ -38,7 +38,26 @@ final class RetentionCleaner
             $this->connection
                 ->table('import_export_files')
                 ->where('job_uuid', '=', $job['uuid'])
-                ->where('role', '=', 'tmp')
+                ->delete();
+
+            $this->connection
+                ->table('import_export_reports')
+                ->where('job_uuid', '=', $job['uuid'])
+                ->delete();
+
+            $this->connection
+                ->table('import_export_errors')
+                ->where('job_uuid', '=', $job['uuid'])
+                ->delete();
+
+            $this->connection
+                ->table('import_export_batches')
+                ->where('job_uuid', '=', $job['uuid'])
+                ->delete();
+
+            $this->connection
+                ->table('import_export_jobs')
+                ->where('uuid', '=', $job['uuid'])
                 ->delete();
         }
 

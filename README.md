@@ -353,8 +353,9 @@ All events extend the framework `BaseEvent`. Payload fields in parentheses.
   accept an operator-supplied path.
 - **Retention:** `RetentionCleaner` (via `import-export:cleanup`) deletes files recorded
   with the `tmp` role for terminal (completed/failed/cancelled) jobs older than the
-  cutoff, treating stored paths as local filesystem paths. Source and result files are
-  never deleted, and job/batch/error/report rows are not pruned.
+  cutoff, treating stored tmp paths as local filesystem paths. It then prunes the
+  terminal job's file, batch, error, report, and job rows. Source and result files are
+  not unlinked from disk by retention cleanup.
 
 ## Configuration
 
@@ -378,7 +379,7 @@ currently has no effect.
 | `batch_size` | `500` | Reserved | Creation paths default to 500; override per job via `batch_size` / `--batch-size`. |
 | `max_batches_per_job` | `10000` | Wired | Maximum planned batches an adapter may return for one import/export job. |
 | `max_file_size` | `52428800` | Wired | Import source size limit enforced from the resolved local file size; request metadata is ignored. |
-| `retention_days` | `30` | Reserved | `import-export:cleanup --days` defaults to 30 independent of config. |
+| `retention_days` | `30` | Wired | Default cutoff age for `import-export:cleanup` when `--days` is omitted. |
 | `error_cap_per_severity` | `1000` | Reserved | Runtime cap is currently fixed at 1000 per severity. |
 | `stale_lock_minutes` | `15` | Reserved | Stale-lock reclaim window is currently fixed at 15 minutes. |
 
