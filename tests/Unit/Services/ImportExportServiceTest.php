@@ -127,6 +127,43 @@ final class ImportExportServiceTest extends ImportExportTestCase
         $this->assertSame(ProcessExportBatchJob::class, $queue->pushed[0]['job']);
     }
 
+    public function testCreateImportRejectsPlansThatExceedMaxBatches(): void
+    {
+        $this->appContext()->mergeConfigDefaults('import_export', ['max_batches_per_job' => 1]);
+        $this->seedSourceFile('imports/content.ndjson');
+        $service = $this->service(
+            importer: new FakeImporter('wordpress', new ImportPlan(2, [
+                new ImportBatch('batch-a', 'pending', 1, 0, 1),
+                new ImportBatch('batch-b', 'pending', 2, 1, 1),
+            ], retryable: true)),
+        );
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('too many batches');
+
+        $service->createImport(
+            'wordpress',
+            new ImportSource('uploads', 'imports/content.ndjson'),
+            new ImportOptions()
+        );
+    }
+
+    public function testCreateExportRejectsPlansThatExceedMaxBatches(): void
+    {
+        $this->appContext()->mergeConfigDefaults('import_export', ['max_batches_per_job' => 1]);
+        $service = $this->service(
+            exporter: new FakeExporter('entries', new ExportPlan(2, [
+                new ExportBatch('batch-a', 'pending', 1, 0, 1),
+                new ExportBatch('batch-b', 'pending', 2, 1, 1),
+            ], retryable: true)),
+        );
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('too many batches');
+
+        $service->createExport('entries', new ExportOptions(format: 'ndjson'));
+    }
+
     public function testCreateExportPersistsFormatFiltersOptionsAndResultDisk(): void
     {
         $service = $this->service(

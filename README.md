@@ -376,6 +376,7 @@ currently has no effect.
 | `private_path` | `null` | Wired | Private local root for HTTP-managed failed-record exports; defaults to `<base>/import-export`. |
 | `tmp_disk` / `tmp_path` | `local` / `import-export/tmp` | Reserved | Retention treats stored tmp paths as local filesystem paths. |
 | `batch_size` | `500` | Reserved | Creation paths default to 500; override per job via `batch_size` / `--batch-size`. |
+| `max_batches_per_job` | `10000` | Wired | Maximum planned batches an adapter may return for one import/export job. |
 | `max_file_size` | `52428800` | Wired | Import source size limit enforced from the resolved local file size; request metadata is ignored. |
 | `retention_days` | `30` | Reserved | `import-export:cleanup --days` defaults to 30 independent of config. |
 | `error_cap_per_severity` | `1000` | Reserved | Runtime cap is currently fixed at 1000 per severity. |

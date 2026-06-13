@@ -15,7 +15,9 @@ use Glueful\Extensions\ImportExport\Repositories\ImportExportBatchRepository;
 use Glueful\Extensions\ImportExport\Repositories\ImportExportFileRepository;
 use Glueful\Extensions\ImportExport\Repositories\ImportExportJobRepository;
 use Glueful\Extensions\ImportExport\Support\ExportOptions;
+use Glueful\Extensions\ImportExport\Support\ExportPlan;
 use Glueful\Extensions\ImportExport\Support\ImportOptions;
+use Glueful\Extensions\ImportExport\Support\ImportPlan;
 use Glueful\Extensions\ImportExport\Support\ImportSource;
 use Glueful\Extensions\ImportExport\Support\PathGuard;
 use Glueful\Queue\QueueManager;
@@ -49,6 +51,7 @@ final class ImportExportService
         }
 
         $plan = $importer->plan($resolvedSource, $options);
+        $this->guardBatchCount($plan);
         $job = $this->jobs->create([
             'type' => 'import',
             'adapter' => $adapterKey,
@@ -98,6 +101,7 @@ final class ImportExportService
     {
         $exporter = $this->exporters->get($adapterKey);
         $plan = $exporter->plan($options);
+        $this->guardBatchCount($plan);
         $job = $this->jobs->create([
             'type' => 'export',
             'adapter' => $adapterKey,
@@ -186,6 +190,19 @@ final class ImportExportService
         }
 
         return $sizeBytes;
+    }
+
+    private function guardBatchCount(ImportPlan|ExportPlan $plan): void
+    {
+        $count = count($plan->batches);
+        $maxBatches = (int) config($this->context, 'import_export.max_batches_per_job', 10000);
+        if ($maxBatches > 0 && $count > $maxBatches) {
+            throw new \InvalidArgumentException(sprintf(
+                'Import/export plan contains too many batches (%d); maximum is %d.',
+                $count,
+                $maxBatches
+            ));
+        }
     }
 
     /** @param array<string,mixed> $data */

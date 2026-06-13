@@ -12,6 +12,7 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 - Confine import source paths to configured disk roots, fail closed on missing/unreadable files, and enforce `max_file_size` from the resolved file instead of trusting request metadata.
 - Scope HTTP job list/read/operate endpoints to the authenticated job creator by default, with a new `import_export.manage_all` permission for trusted cross-user operators.
 - Add ZIP bundle extraction limits for entry count, per-entry uncompressed size, and total uncompressed size.
+- Bound import/export plan fan-out with `import_export.max_batches_per_job` before creating job and batch rows.
 
 ## [1.0.0] - 2026-06-11
 
