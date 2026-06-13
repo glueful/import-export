@@ -88,7 +88,7 @@ final class BatchRunnerTest extends ImportExportTestCase
         self::assertSame('failed', $storedJob['status']);
         self::assertSame(1, (int) $storedJob['failed_records']);
         self::assertSame('adapter_exception', $errors[0]['code']);
-        self::assertSame('Adapter exploded', $errors[0]['message']);
+        self::assertSame('Adapter failed while processing the batch.', $errors[0]['message']);
     }
 
     public function testThrowingExporterMarksBatchAndJobFailedAndRecordsError(): void
@@ -113,7 +113,7 @@ final class BatchRunnerTest extends ImportExportTestCase
         self::assertSame('failed', $storedJob['status']);
         self::assertSame(1, (int) $storedJob['failed_records']);
         self::assertSame('adapter_exception', $errors[0]['code']);
-        self::assertSame('Export exploded', $errors[0]['message']);
+        self::assertSame('Adapter failed while processing the batch.', $errors[0]['message']);
     }
 
     public function testSuccessfulExporterProcessesBatch(): void
