@@ -108,7 +108,7 @@ final class ImportExportService
             'status' => 'queued',
             'mode' => 'commit',
             'format' => $options->format,
-            'result_disk' => (string) config($this->context, 'import_export.result_disk', 'uploads'),
+            'result_disk' => (string) config($this->context, 'import_export.result_disk', 'local'),
             'filters' => $this->encodeJson($options->filters),
             'options' => $this->encodeJson($options->options),
             'total_records' => $plan->totalRecords,

@@ -372,7 +372,7 @@ currently has no effect.
 | `queue` | `import-export` | Wired | Queue name used for batch jobs. |
 | `source_disk` | `uploads` | Wired | HTTP/CLI default source disk. |
 | `source_roots` | `[]` | Wired | Optional disk-to-local-root map for import sources; otherwise each disk resolves under `<base>/<disk>`. |
-| `result_disk` | `uploads` | Reserved | Result file rows currently record the job row's disk (effectively `local`). |
+| `result_disk` | `local` | Wired | Default disk recorded for export result files. |
 | `private_path` | `null` | Wired | Private local root for HTTP-managed failed-record exports; defaults to `<base>/import-export`. |
 | `tmp_disk` / `tmp_path` | `local` / `import-export/tmp` | Reserved | Retention treats stored tmp paths as local filesystem paths. |
 | `batch_size` | `500` | Reserved | Creation paths default to 500; override per job via `batch_size` / `--batch-size`. |

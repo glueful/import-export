@@ -6,7 +6,7 @@ return [
     'routes_enabled' => true,
     'source_disk' => 'uploads',
     'source_roots' => [],
-    'result_disk' => 'uploads',
+    'result_disk' => 'local',
     'private_path' => null,
     'tmp_disk' => 'local',
     'tmp_path' => 'import-export/tmp',

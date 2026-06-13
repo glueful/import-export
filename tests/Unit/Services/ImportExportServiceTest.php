@@ -123,7 +123,7 @@ final class ImportExportServiceTest extends ImportExportTestCase
         $this->assertSame('export', $job['type']);
         $this->assertSame('entries', $job['adapter']);
         $this->assertSame('ndjson', $job['format']);
-        $this->assertSame('uploads', $job['result_disk']);
+        $this->assertSame('local', $job['result_disk']);
         $this->assertSame(ProcessExportBatchJob::class, $queue->pushed[0]['job']);
     }
 
@@ -179,7 +179,7 @@ final class ImportExportServiceTest extends ImportExportTestCase
         ));
 
         $this->assertSame('csv', $job['format']);
-        $this->assertSame('uploads', $job['result_disk']);
+        $this->assertSame('local', $job['result_disk']);
         $this->assertSame(['status' => 'published'], json_decode((string) $job['filters'], true));
         $this->assertSame(['include_drafts' => false], json_decode((string) $job['options'], true));
     }
