@@ -270,6 +270,7 @@ require `auth` plus the listed permission (fail-closed).
 | GET | `/import-export/jobs/{uuid}/report` | `import_export.view` | Latest report (built on demand if absent). |
 | POST | `/import-export/jobs/{uuid}/cancel` | `import_export.cancel` | Cancel a job (422 on invalid transition). |
 | POST | `/import-export/jobs/{uuid}/retry` | `import_export.retry` | Re-queue failed batches of a retryable job. |
+| POST | `/import-export/jobs/{uuid}/failed-records/export` | `import_export.export_failed_records` | Write failed-record errors to a managed private file (`format=ndjson|csv`). |
 
 ## CLI
 
@@ -316,6 +317,7 @@ Permission slugs (registered in the framework permission catalog):
 - `import_export.run_export`
 - `import_export.cancel`
 - `import_export.retry`
+- `import_export.export_failed_records`
 
 ## Events
 
@@ -340,9 +342,9 @@ All events extend the framework `BaseEvent`. Payload fields in parentheses.
   1000); past the cap the engine increments the job's `error_overflow_count` instead of
   inserting rows.
 - **Failed-record export:** `FailedRecordExporter` writes a job's stored row errors to a
-  CSV or NDJSON file. It is a service-level capability -- there is no HTTP route or CLI
-  command for it yet, and nothing populates the report row's `failed_records_*` columns
-  automatically.
+  CSV or NDJSON file. HTTP exports always write under the managed private
+  `import_export.private_path` root and return a managed relative path; CLI exports
+  accept an operator-supplied path.
 - **Retention:** `RetentionCleaner` (via `import-export:cleanup`) deletes files recorded
   with the `tmp` role for terminal (completed/failed/cancelled) jobs older than the
   cutoff, treating stored paths as local filesystem paths. Source and result files are
@@ -364,6 +366,7 @@ currently has no effect.
 | `queue` | `import-export` | Wired | Queue name used for batch jobs. |
 | `source_disk` | `uploads` | Reserved | HTTP/CLI default the source disk to the literal `uploads`. |
 | `result_disk` | `uploads` | Reserved | Result file rows currently record the job row's disk (effectively `local`). |
+| `private_path` | `null` | Wired | Private local root for HTTP-managed failed-record exports; defaults to `<base>/import-export`. |
 | `tmp_disk` / `tmp_path` | `local` / `import-export/tmp` | Reserved | Retention treats stored tmp paths as local filesystem paths. |
 | `batch_size` | `500` | Reserved | Creation paths default to 500; override per job via `batch_size` / `--batch-size`. |
 | `max_file_size` | `52428800` | Reserved | No engine-side size enforcement yet; validate in `supports()`/`plan()`. |

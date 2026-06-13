@@ -18,35 +18,41 @@ final class FailedRecordExportControllerTest extends ImportExportTestCase
         $job = $this->seedJob(['status' => 'failed']);
         $errors = new ImportExportErrorRepository($this->connection(), new ImportExportJobRepository($this->connection()));
         $errors->record($job['uuid'], null, ['message' => 'Bad row', 'code' => 'bad_row']);
-        $path = tempnam(sys_get_temp_dir(), 'failed-record-http-') . '.ndjson';
 
         $response = $this->controller($errors)->export($this->jsonRequest([
-            'path' => $path,
             'format' => 'ndjson',
         ]), $job['uuid']);
 
         $data = $this->json($response);
         self::assertSame(200, $response->getStatusCode());
-        self::assertSame($path, $data['data']['path']);
-        self::assertStringContainsString('Bad row', (string) file_get_contents($path));
+        self::assertSame('local', $data['data']['disk']);
+        self::assertSame("failed-records/{$job['uuid']}.ndjson", $data['data']['path']);
 
-        @unlink($path);
+        $managedPath = sys_get_temp_dir() . "/import-export/failed-records/{$job['uuid']}.ndjson";
+        self::assertStringContainsString('Bad row', (string) file_get_contents($managedPath));
+        @unlink($managedPath);
     }
 
     public function testMissingJobReturnsNotFound(): void
     {
-        $response = $this->controller()->export($this->jsonRequest(['path' => '/tmp/missing.ndjson']), 'missing-job');
+        $response = $this->controller()->export($this->jsonRequest([]), 'missing-job');
 
         self::assertSame(404, $response->getStatusCode());
     }
 
-    public function testMissingPathReturnsValidationError(): void
+    public function testRequestPathIsNotUsedForHttpExport(): void
     {
         $job = $this->seedJob(['status' => 'failed']);
+        $attackerPath = tempnam(sys_get_temp_dir(), 'failed-record-attacker-') . '.ndjson';
+        @unlink($attackerPath);
 
-        $response = $this->controller()->export($this->jsonRequest([]), $job['uuid']);
+        $response = $this->controller()->export($this->jsonRequest([
+            'path' => $attackerPath,
+            'format' => 'ndjson',
+        ]), $job['uuid']);
 
-        self::assertSame(422, $response->getStatusCode());
+        self::assertSame(200, $response->getStatusCode());
+        self::assertFileDoesNotExist($attackerPath);
     }
 
     private function controller(?ImportExportErrorRepository $errors = null): FailedRecordExportController
@@ -54,7 +60,7 @@ final class FailedRecordExportControllerTest extends ImportExportTestCase
         $jobs = new ImportExportJobRepository($this->connection());
         $errors ??= new ImportExportErrorRepository($this->connection(), $jobs);
 
-        return new FailedRecordExportController($jobs, new FailedRecordExporter($errors));
+        return new FailedRecordExportController($this->appContext(), $jobs, new FailedRecordExporter($errors));
     }
 
     /** @param array<string,mixed> $payload */

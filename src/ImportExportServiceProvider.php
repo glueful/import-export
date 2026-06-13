@@ -239,6 +239,11 @@ final class ImportExportServiceProvider extends ServiceProvider
                 ->category('Import Export')
                 ->resource('import_export')
                 ->managedBy('glueful/import-export'),
+            Permission::define('import_export.export_failed_records')
+                ->label('Export failed import/export records')
+                ->category('Import Export')
+                ->resource('import_export')
+                ->managedBy('glueful/import-export'),
         ];
     }
 }

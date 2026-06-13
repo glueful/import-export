@@ -4,6 +4,12 @@ All notable changes to `glueful/import-export` will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [Unreleased]
+
+### Fixed
+
+- Harden HTTP failed-record export so request bodies can no longer choose arbitrary filesystem paths; exports now write under a managed private root and require `import_export.export_failed_records`.
+
 ## [1.0.0] - 2026-06-11
 
 First release. A domain-blind **import/export engine** for Glueful: the engine owns
