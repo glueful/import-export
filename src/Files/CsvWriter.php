@@ -24,10 +24,21 @@ final class CsvWriter
                     $headerWritten = true;
                 }
 
-                fputcsv($handle, array_values($row), ',', '"', '\\');
+                fputcsv($handle, array_map($this->escapeFormulaValue(...), array_values($row)), ',', '"', '\\');
             }
         } finally {
             fclose($handle);
         }
+    }
+
+    private function escapeFormulaValue(mixed $value): mixed
+    {
+        if (!is_string($value) || $value === '') {
+            return $value;
+        }
+
+        return in_array($value[0], ['=', '+', '-', '@', "\t", "\r"], true)
+            ? "'" . $value
+            : $value;
     }
 }

@@ -8,6 +8,10 @@ final class PathGuard
 {
     public static function normalizeRelative(string $path): string
     {
+        if (str_contains($path, "\0")) {
+            throw new \RuntimeException(sprintf('Unsafe archive path "%s".', $path));
+        }
+
         $path = str_replace('\\', '/', $path);
         if ($path === '' || str_starts_with($path, '/') || preg_match('/^[A-Za-z]:\//', $path) === 1) {
             throw new \RuntimeException(sprintf('Unsafe archive path "%s".', $path));

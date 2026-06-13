@@ -37,4 +37,19 @@ final class CsvReaderTest extends TestCase
         $this->assertStringContainsString("title,status\n", (string) file_get_contents($path));
         $this->assertCount(2, iterator_to_array((new CsvReader())->read($path)));
     }
+
+    public function testCsvWriterEscapesSpreadsheetFormulaValues(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'csv-writer-');
+        self::assertIsString($path);
+
+        (new CsvWriter())->write($path, [
+            ['title' => '=IMPORTXML("https://example.com")', 'status' => '+SUM(1,2)'],
+        ]);
+
+        $rows = iterator_to_array((new CsvReader())->read($path));
+
+        $this->assertSame("'=IMPORTXML(\"https://example.com\")", $rows[0]['title']);
+        $this->assertSame("'+SUM(1,2)", $rows[0]['status']);
+    }
 }

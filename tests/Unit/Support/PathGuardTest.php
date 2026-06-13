@@ -33,6 +33,7 @@ final class PathGuardTest extends TestCase
             ['/tmp/escape.txt'],
             ['C:\\escape.txt'],
             ['content/../../escape.txt'],
+            ["content/\0hidden.ndjson"],
         ];
     }
 }
