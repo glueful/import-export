@@ -401,7 +401,9 @@ ZIP bundle extraction routes every entry name through `PathGuard`, which rejects
 - Windows drive-letter paths.
 
 After normalization, a `realpath` containment check verifies the resolved target
-directory is still under the extraction root. Hostile archives are covered by tests.
+directory is still under the extraction root. Extraction also rejects archives with more
+than 1000 files, any entry larger than 50 MiB, or more than 100 MiB total uncompressed
+data by default. Hostile archives are covered by tests.
 
 ### Permission Gating
 
