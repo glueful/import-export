@@ -6,6 +6,8 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-06-13
+
 ### Fixed
 
 - Harden HTTP failed-record export so request bodies can no longer choose arbitrary filesystem paths; exports now write under a managed private root and require `import_export.export_failed_records`.

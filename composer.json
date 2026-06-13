@@ -24,7 +24,7 @@
         "php": "^8.3"
     },
     "require-dev": {
-        "glueful/framework": "^1.55.0",
+        "glueful/framework": "^1.56.0",
         "phpstan/phpstan": "^1.0",
         "phpunit/phpunit": "^10.5",
         "squizlabs/php_codesniffer": "^3.6"
@@ -54,7 +54,7 @@
             "name": "Import Export",
             "displayName": "Import Export",
             "description": "Import and export engine for Glueful apps.",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "categories": [
                 "data",
                 "operations"
@@ -62,7 +62,7 @@
             "publisher": "glueful-team",
             "provider": "Glueful\\Extensions\\ImportExport\\ImportExportServiceProvider",
             "requires": {
-                "glueful": ">=1.55.0",
+                "glueful": ">=1.56.0",
                 "extensions": []
             }
         }
