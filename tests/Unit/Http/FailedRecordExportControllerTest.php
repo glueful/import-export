@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Glueful\Extensions\ImportExport\Tests\Unit\Http;
 
+use Glueful\Auth\UserIdentity;
 use Glueful\Extensions\ImportExport\Http\Controllers\FailedRecordExportController;
+use Glueful\Extensions\ImportExport\Http\JobAccess;
 use Glueful\Extensions\ImportExport\Repositories\ImportExportErrorRepository;
 use Glueful\Extensions\ImportExport\Repositories\ImportExportJobRepository;
 use Glueful\Extensions\ImportExport\Services\FailedRecordExporter;
@@ -15,13 +17,13 @@ final class FailedRecordExportControllerTest extends ImportExportTestCase
 {
     public function testExportWritesFailedRecordsAndReturnsPath(): void
     {
-        $job = $this->seedJob(['status' => 'failed']);
+        $job = $this->seedJob(['status' => 'failed', 'created_by' => 'user-1']);
         $errors = new ImportExportErrorRepository($this->connection(), new ImportExportJobRepository($this->connection()));
         $errors->record($job['uuid'], null, ['message' => 'Bad row', 'code' => 'bad_row']);
 
         $response = $this->controller($errors)->export($this->jsonRequest([
             'format' => 'ndjson',
-        ]), $job['uuid']);
+        ], 'user-1'), $job['uuid']);
 
         $data = $this->json($response);
         self::assertSame(200, $response->getStatusCode());
@@ -42,17 +44,26 @@ final class FailedRecordExportControllerTest extends ImportExportTestCase
 
     public function testRequestPathIsNotUsedForHttpExport(): void
     {
-        $job = $this->seedJob(['status' => 'failed']);
+        $job = $this->seedJob(['status' => 'failed', 'created_by' => 'user-1']);
         $attackerPath = tempnam(sys_get_temp_dir(), 'failed-record-attacker-') . '.ndjson';
         @unlink($attackerPath);
 
         $response = $this->controller()->export($this->jsonRequest([
             'path' => $attackerPath,
             'format' => 'ndjson',
-        ]), $job['uuid']);
+        ], 'user-1'), $job['uuid']);
 
         self::assertSame(200, $response->getStatusCode());
         self::assertFileDoesNotExist($attackerPath);
+    }
+
+    public function testExportHidesJobsOwnedByAnotherUser(): void
+    {
+        $job = $this->seedJob(['status' => 'failed', 'created_by' => 'other-user']);
+
+        $response = $this->controller()->export($this->jsonRequest([], 'user-1'), $job['uuid']);
+
+        self::assertSame(404, $response->getStatusCode());
     }
 
     private function controller(?ImportExportErrorRepository $errors = null): FailedRecordExportController
@@ -60,13 +71,18 @@ final class FailedRecordExportControllerTest extends ImportExportTestCase
         $jobs = new ImportExportJobRepository($this->connection());
         $errors ??= new ImportExportErrorRepository($this->connection(), $jobs);
 
-        return new FailedRecordExportController($this->appContext(), $jobs, new FailedRecordExporter($errors));
+        return new FailedRecordExportController(
+            $this->appContext(),
+            $jobs,
+            new FailedRecordExporter($errors),
+            new JobAccess($this->appContext())
+        );
     }
 
     /** @param array<string,mixed> $payload */
-    private function jsonRequest(array $payload): Request
+    private function jsonRequest(array $payload, ?string $userUuid = null): Request
     {
-        return Request::create(
+        $request = Request::create(
             '/',
             'POST',
             [],
@@ -75,6 +91,11 @@ final class FailedRecordExportControllerTest extends ImportExportTestCase
             ['CONTENT_TYPE' => 'application/json'],
             json_encode($payload, JSON_THROW_ON_ERROR)
         );
+        if ($userUuid !== null) {
+            $request->attributes->set('auth.user', new UserIdentity($userUuid));
+        }
+
+        return $request;
     }
 
     /** @return array<string,mixed> */

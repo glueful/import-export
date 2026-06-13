@@ -58,7 +58,7 @@ final class ImportExportJobRepository
     }
 
     /** @return list<array<string,mixed>> */
-    public function list(?string $type = null, ?string $status = null, int $limit = 50): array
+    public function list(?string $type = null, ?string $status = null, int $limit = 50, ?string $createdBy = null): array
     {
         $query = $this->connection
             ->table('import_export_jobs')
@@ -71,6 +71,10 @@ final class ImportExportJobRepository
 
         if ($status !== null && $status !== '') {
             $query->where('status', '=', $status);
+        }
+
+        if ($createdBy !== null && $createdBy !== '') {
+            $query->where('created_by', '=', $createdBy);
         }
 
         return $query->get();

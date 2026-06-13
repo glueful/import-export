@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Glueful\Extensions\ImportExport\Http\Controllers;
 
+use Glueful\Extensions\ImportExport\Http\JobAccess;
 use Glueful\Extensions\ImportExport\Repositories\ImportExportJobRepository;
 use Glueful\Extensions\ImportExport\Repositories\ImportExportReportRepository;
 use Glueful\Extensions\ImportExport\Services\ReportBuilder;
@@ -16,12 +17,14 @@ final class ImportExportReportController
         private ImportExportJobRepository $jobs,
         private ImportExportReportRepository $reports,
         private ReportBuilder $builder,
+        private JobAccess $access,
     ) {
     }
 
     public function show(Request $request, string $uuid): Response
     {
-        if ($this->jobs->find($uuid) === null) {
+        $job = $this->jobs->find($uuid);
+        if ($job === null || !$this->access->canAccess($request, $job)) {
             return Response::notFound('Import/export job not found.');
         }
 

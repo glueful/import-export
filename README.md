@@ -310,6 +310,11 @@ middleware, which resolves the framework `PermissionManager` and calls `can()` w
 `import_export` resource. The guard fails closed: no authenticated user, no available
 permission manager, or a denial all return HTTP 403.
 
+Job read/operate endpoints are additionally owner-scoped by `created_by`. A user can
+list, inspect, cancel, retry, report, or export failed records only for jobs they
+created. Grant `import_export.manage_all` to trusted operators who need cross-user job
+access.
+
 Permission slugs (registered in the framework permission catalog):
 
 - `import_export.view`
@@ -318,6 +323,7 @@ Permission slugs (registered in the framework permission catalog):
 - `import_export.cancel`
 - `import_export.retry`
 - `import_export.export_failed_records`
+- `import_export.manage_all`
 
 ## Events
 

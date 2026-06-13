@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Glueful\Extensions\ImportExport\Http\Controllers;
 
-use Glueful\Auth\UserIdentity;
 use Glueful\Bootstrap\ApplicationContext;
 use Glueful\Events\EventService;
 use Glueful\Extensions\ImportExport\Events\ImportExportJobCancelled;
+use Glueful\Extensions\ImportExport\Http\JobAccess;
 use Glueful\Extensions\ImportExport\Repositories\ImportExportBatchRepository;
 use Glueful\Extensions\ImportExport\Repositories\ImportExportErrorRepository;
 use Glueful\Extensions\ImportExport\Repositories\ImportExportJobRepository;
@@ -27,17 +27,23 @@ final class ImportJobController
         private ImportExportJobRepository $jobs,
         private ImportExportBatchRepository $batches,
         private ImportExportErrorRepository $errors,
+        private JobAccess $access,
         private ?EventService $events = null,
     ) {
     }
 
     public function index(Request $request): Response
     {
+        $actorUuid = $this->access->canManageAll($request)
+            ? null
+            : $this->access->actorUuid($request);
+
         return Response::success([
             'jobs' => $this->jobs->list(
                 $this->optionalQuery($request, 'type'),
                 $this->optionalQuery($request, 'status'),
-                max(1, min(200, (int) $request->query->get('limit', 50)))
+                max(1, min(200, (int) $request->query->get('limit', 50))),
+                $actorUuid
             ),
         ], 'Import/export jobs retrieved.');
     }
@@ -59,7 +65,7 @@ final class ImportJobController
                     mode: (string) ($data['mode'] ?? 'dry_run'),
                     batchSize: (int) ($data['batch_size']
                         ?? config($this->context, 'import_export.batch_size', 500)),
-                    actorUuid: $this->actorUuid($request),
+                    actorUuid: $this->access->actorUuid($request),
                     options: is_array($data['options'] ?? null) ? $data['options'] : []
                 )
             );
@@ -75,7 +81,7 @@ final class ImportJobController
     public function show(Request $request, string $uuid): Response
     {
         $job = $this->jobs->find($uuid);
-        if ($job === null) {
+        if ($job === null || !$this->access->canAccess($request, $job)) {
             return Response::notFound('Import/export job not found.');
         }
 
@@ -87,7 +93,8 @@ final class ImportJobController
 
     public function errors(Request $request, string $uuid): Response
     {
-        if ($this->jobs->find($uuid) === null) {
+        $job = $this->jobs->find($uuid);
+        if ($job === null || !$this->access->canAccess($request, $job)) {
             return Response::notFound('Import/export job not found.');
         }
 
@@ -100,7 +107,7 @@ final class ImportJobController
     {
         try {
             $job = $this->jobs->find($uuid);
-            if ($job === null) {
+            if ($job === null || !$this->access->canAccess($request, $job)) {
                 return Response::notFound('Import/export job not found.');
             }
 
@@ -148,13 +155,6 @@ final class ImportJobController
         $value = $request->query->get($key);
 
         return is_scalar($value) && (string) $value !== '' ? (string) $value : null;
-    }
-
-    private function actorUuid(Request $request): ?string
-    {
-        $user = $request->attributes->get('auth.user');
-
-        return $user instanceof UserIdentity ? $user->id() : null;
     }
 
     /**

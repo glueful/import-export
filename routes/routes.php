@@ -76,7 +76,9 @@ $router->group(['prefix' => '/import-export', 'middleware' => ['auth']], functio
     /**
      * @route GET /import-export/jobs
      * @summary List Import/Export Jobs
-     * @description Lists import/export jobs, newest first, optionally filtered by type and status.
+     * @description
+     *   Lists the caller's import/export jobs, newest first, optionally filtered by type and status.
+     *   Users with import_export.manage_all can see all jobs.
      * @tag Import Export
      * @queryParam type:string="Filter by job type: import|export"
      * @queryParam status:string="Filter by status: pending|planning|queued|running|completed|failed|cancelled"
@@ -91,7 +93,9 @@ $router->group(['prefix' => '/import-export', 'middleware' => ['auth']], functio
     /**
      * @route GET /import-export/jobs/{uuid}
      * @summary Show Import/Export Job
-     * @description Retrieves one job with its progress counters, links, and all of its batches.
+     * @description
+     *   Retrieves one caller-owned job with its progress counters, links, and all of its batches.
+     *   Users with import_export.manage_all can retrieve any job.
      * @tag Import Export
      * @response 200 application/json "Job retrieved"
      * @response 403 "Permission denied (import_export.view)"
@@ -106,8 +110,9 @@ $router->group(['prefix' => '/import-export', 'middleware' => ['auth']], functio
      * @route GET /import-export/jobs/{uuid}/errors
      * @summary List Import/Export Job Errors
      * @description
-     *   Retrieves the stored row errors for one job. Errors are capped per severity;
+     *   Retrieves the stored row errors for one caller-owned job. Errors are capped per severity;
      *   once the cap is reached, further errors only increment the job's error_overflow_count.
+     *   Users with import_export.manage_all can retrieve errors for any job.
      * @tag Import Export
      * @response 200 application/json "Errors retrieved"
      * @response 403 "Permission denied (import_export.view)"
@@ -122,8 +127,9 @@ $router->group(['prefix' => '/import-export', 'middleware' => ['auth']], functio
      * @route GET /import-export/jobs/{uuid}/report
      * @summary Show Import/Export Job Report
      * @description
-     *   Returns the latest stored report for the job, or builds one on demand from the
-     *   current job state (type, adapter, status, totals, failed and overflow counts).
+     *   Returns the latest stored report for a caller-owned job, or builds one on demand from
+     *   the current job state (type, adapter, status, totals, failed and overflow counts).
+     *   Users with import_export.manage_all can retrieve reports for any job.
      * @tag Import Export
      * @response 200 application/json "Report retrieved"
      * @response 403 "Permission denied (import_export.view)"
@@ -138,9 +144,10 @@ $router->group(['prefix' => '/import-export', 'middleware' => ['auth']], functio
      * @route POST /import-export/jobs/{uuid}/cancel
      * @summary Cancel Import/Export Job
      * @description
-     *   Cancels a pending, planning, queued, or running job and dispatches
+     *   Cancels a caller-owned pending, planning, queued, or running job and dispatches
      *   ImportExportJobCancelled. Batches that have not been claimed yet observe the
      *   cancellation and exit; an in-flight batch finishes its current run.
+     *   Users with import_export.manage_all can cancel any job.
      * @tag Import Export
      * @response 200 application/json "Job cancelled"
      * @response 403 "Permission denied (import_export.cancel)"
@@ -156,10 +163,11 @@ $router->group(['prefix' => '/import-export', 'middleware' => ['auth']], functio
      * @route POST /import-export/jobs/{uuid}/retry
      * @summary Retry Import/Export Job
      * @description
-     *   Re-queues the failed batches of a job whose adapter implements
+     *   Re-queues the failed batches of a caller-owned job whose adapter implements
      *   RetryableAdapterInterface and reports retryable() === true. Each failed batch is
      *   reset to pending and re-delivered in full, so retryable adapters must apply
      *   records idempotently (upsert by a stable source key).
+     *   Users with import_export.manage_all can retry any job.
      * @tag Import Export
      * @response 200 application/json "Retry queued"
      * @response 403 "Permission denied (import_export.retry)"
@@ -174,7 +182,9 @@ $router->group(['prefix' => '/import-export', 'middleware' => ['auth']], functio
     /**
      * @route POST /import-export/jobs/{uuid}/failed-records/export
      * @summary Export Failed Records
-     * @description Writes the stored failed-record errors for a job to a managed private ndjson or csv file.
+     * @description
+     *   Writes the stored failed-record errors for a caller-owned job to a managed private
+     *   ndjson or csv file. Users with import_export.manage_all can export failures for any job.
      * @tag Import Export
      * @requestBody
      *   format:string="Output format: ndjson|csv (default: ndjson)"
