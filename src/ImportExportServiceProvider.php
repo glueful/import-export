@@ -22,6 +22,7 @@ use Glueful\Extensions\ImportExport\Http\Controllers\ImportExportAdapterControll
 use Glueful\Extensions\ImportExport\Http\Controllers\ImportExportReportController;
 use Glueful\Extensions\ImportExport\Http\Controllers\ImportExportRetryController;
 use Glueful\Extensions\ImportExport\Http\Controllers\ImportJobController;
+use Glueful\Extensions\ImportExport\Http\JobAccess;
 use Glueful\Extensions\ImportExport\Http\RequireImportExportPermission;
 use Glueful\Extensions\ImportExport\Jobs\ProcessExportBatchJob;
 use Glueful\Extensions\ImportExport\Jobs\ProcessImportBatchJob;
@@ -88,6 +89,7 @@ final class ImportExportServiceProvider extends ServiceProvider
             RetentionCleaner::class => self::autowired(RetentionCleaner::class),
             ProcessImportBatchJob::class => self::autowired(ProcessImportBatchJob::class, shared: false),
             ProcessExportBatchJob::class => self::autowired(ProcessExportBatchJob::class, shared: false),
+            JobAccess::class => self::autowired(JobAccess::class),
             RequireImportExportPermission::class => [
                 'class' => RequireImportExportPermission::class,
                 'shared' => true,
@@ -236,6 +238,16 @@ final class ImportExportServiceProvider extends ServiceProvider
                 ->managedBy('glueful/import-export'),
             Permission::define('import_export.retry')
                 ->label('Retry import/export jobs')
+                ->category('Import Export')
+                ->resource('import_export')
+                ->managedBy('glueful/import-export'),
+            Permission::define('import_export.export_failed_records')
+                ->label('Export failed import/export records')
+                ->category('Import Export')
+                ->resource('import_export')
+                ->managedBy('glueful/import-export'),
+            Permission::define('import_export.manage_all')
+                ->label('Manage all import/export jobs')
                 ->category('Import Export')
                 ->resource('import_export')
                 ->managedBy('glueful/import-export'),

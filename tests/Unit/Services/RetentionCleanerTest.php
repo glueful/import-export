@@ -39,5 +39,36 @@ final class RetentionCleanerTest extends ImportExportTestCase
         $this->assertSame(1, $deleted);
         $this->assertFileDoesNotExist($oldFile);
         $this->assertFileExists($runningFile);
+        $this->assertNull($this->connection()->table('import_export_jobs')->where('uuid', '=', $oldJob['uuid'])->first());
+        $this->assertNotNull($this->connection()->table('import_export_jobs')->where('uuid', '=', $runningJob['uuid'])->first());
+        $this->assertSame([], $this->connection()->table('import_export_files')->where('job_uuid', '=', $oldJob['uuid'])->get());
+    }
+
+    public function testRetentionCleanerPrunesOldTerminalJobRelatedRows(): void
+    {
+        $oldJob = $this->seedJob(['status' => 'failed', 'created_at' => '2026-01-01 00:00:00']);
+        $batch = $this->seedBatch(['job_uuid' => $oldJob['uuid'], 'status' => 'failed']);
+        $this->connection()->table('import_export_errors')->insert([
+            'uuid' => 'error0000001',
+            'job_uuid' => $oldJob['uuid'],
+            'batch_uuid' => $batch['uuid'],
+            'severity' => 'error',
+            'code' => 'bad_row',
+            'message' => 'Bad row',
+            'created_at' => '2026-01-01 00:00:00',
+        ]);
+        $this->connection()->table('import_export_reports')->insert([
+            'uuid' => 'report000001',
+            'job_uuid' => $oldJob['uuid'],
+            'summary' => '{}',
+            'created_at' => '2026-01-01 00:00:00',
+        ]);
+
+        (new RetentionCleaner($this->connection()))->cleanOlderThan('2026-02-01 00:00:00');
+
+        $this->assertNull($this->connection()->table('import_export_jobs')->where('uuid', '=', $oldJob['uuid'])->first());
+        $this->assertSame([], $this->connection()->table('import_export_batches')->where('job_uuid', '=', $oldJob['uuid'])->get());
+        $this->assertSame([], $this->connection()->table('import_export_errors')->where('job_uuid', '=', $oldJob['uuid'])->get());
+        $this->assertSame([], $this->connection()->table('import_export_reports')->where('job_uuid', '=', $oldJob['uuid'])->get());
     }
 }

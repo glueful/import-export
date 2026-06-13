@@ -115,6 +115,8 @@ final class ImportExportServiceProviderTest extends ImportExportTestCase
             'import_export.run_export',
             'import_export.cancel',
             'import_export.retry',
+            'import_export.export_failed_records',
+            'import_export.manage_all',
         ], $permissions);
     }
 

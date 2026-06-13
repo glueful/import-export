@@ -200,10 +200,11 @@ class BatchRunner
     /** @param array<string,mixed> $job */
     private function failClaimedBatch(array $job, string $batchUuid, \Throwable $e): void
     {
+        $message = 'Adapter failed while processing the batch.';
         $this->errors->record((string) $job['uuid'], $batchUuid, [
             'severity' => 'error',
             'code' => 'adapter_exception',
-            'message' => $e->getMessage(),
+            'message' => $message,
             'context' => [
                 'exception' => $e::class,
             ],
@@ -211,11 +212,11 @@ class BatchRunner
         $this->batches->complete($batchUuid, 0, 1);
         $this->events?->dispatch(new ImportExportBatchFailed(
             (string) $job['uuid'],
-            $batchUuid,
-            (string) $job['type'],
-            (string) $job['adapter'],
-            $e->getMessage(),
-        ));
+                $batchUuid,
+                (string) $job['type'],
+                (string) $job['adapter'],
+                $message,
+            ));
         $this->rollUpJob((string) $job['uuid']);
     }
 

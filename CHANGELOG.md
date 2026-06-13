@@ -4,6 +4,24 @@ All notable changes to `glueful/import-export` will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [Unreleased]
+
+## [1.0.1] - 2026-06-13
+
+### Fixed
+
+- Harden HTTP failed-record export so request bodies can no longer choose arbitrary filesystem paths; exports now write under a managed private root and require `import_export.export_failed_records`.
+- Confine import source paths to configured disk roots, fail closed on missing/unreadable files, and enforce `max_file_size` from the resolved file instead of trusting request metadata.
+- Scope HTTP job list/read/operate endpoints to the authenticated job creator by default, with a new `import_export.manage_all` permission for trusted cross-user operators.
+- Add ZIP bundle extraction limits for entry count, per-entry uncompressed size, and total uncompressed size.
+- Bound import/export plan fan-out with `import_export.max_batches_per_job` before creating job and batch rows.
+- Change the export result default disk from `uploads` to private/local `local`.
+- Prune old terminal job database rows during retention cleanup after unlinking tmp-role files.
+- Escape spreadsheet formula-like CSV values and reject null bytes in guarded relative paths.
+- Store generic adapter exception messages for failed batches instead of persisting raw exception text.
+- Add a pre-read size limit to the JSON file reader.
+- Add cascade foreign keys between import/export jobs and their batch, file, error, and report rows in the base schema.
+
 ## [1.0.0] - 2026-06-11
 
 First release. A domain-blind **import/export engine** for Glueful: the engine owns

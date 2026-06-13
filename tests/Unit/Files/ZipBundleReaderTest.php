@@ -47,4 +47,33 @@ final class ZipBundleReaderTest extends TestCase
 
         (new ZipBundleReader())->extract($zipPath, $extractTo);
     }
+
+    public function testZipBundleReaderRejectsTooManyEntries(): void
+    {
+        $zipPath = tempnam(sys_get_temp_dir(), 'zip-reader-') . '.zip';
+        $extractTo = sys_get_temp_dir() . '/zip-reader-' . bin2hex(random_bytes(4));
+        (new ZipBundleWriter())->write($zipPath, [
+            'one.txt' => 'one',
+            'two.txt' => 'two',
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('too many entries');
+
+        (new ZipBundleReader(maxEntries: 1))->extract($zipPath, $extractTo);
+    }
+
+    public function testZipBundleReaderRejectsExcessiveUncompressedSize(): void
+    {
+        $zipPath = tempnam(sys_get_temp_dir(), 'zip-reader-') . '.zip';
+        $extractTo = sys_get_temp_dir() . '/zip-reader-' . bin2hex(random_bytes(4));
+        (new ZipBundleWriter())->write($zipPath, [
+            'large.txt' => str_repeat('a', 16),
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('uncompressed size');
+
+        (new ZipBundleReader(maxUncompressedBytes: 8))->extract($zipPath, $extractTo);
+    }
 }

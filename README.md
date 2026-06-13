@@ -262,7 +262,7 @@ require `auth` plus the listed permission (fail-closed).
 | Method | Path | Permission | Description |
 | --- | --- | --- | --- |
 | GET | `/import-export/adapters` | `import_export.view` | List registered importer/exporter adapters. |
-| POST | `/import-export/imports` | `import_export.run_import` | Create + queue an import job (`adapter`, `path` required; `disk`, `mime_type`, `metadata`, `mode`, `batch_size`, `options`). |
+| POST | `/import-export/imports` | `import_export.run_import` | Create + queue an import job (`adapter`, relative `path` required; `disk`, `mime_type`, `metadata`, `mode`, `batch_size`, `options`). |
 | POST | `/import-export/exports` | `import_export.run_export` | Create + queue an export job (`adapter` required; `format`, `batch_size`, `filters`, `options`). |
 | GET | `/import-export/jobs` | `import_export.view` | List jobs; query params `type`, `status`, `limit` (1-200, default 50). |
 | GET | `/import-export/jobs/{uuid}` | `import_export.view` | One job with its batches. |
@@ -270,6 +270,7 @@ require `auth` plus the listed permission (fail-closed).
 | GET | `/import-export/jobs/{uuid}/report` | `import_export.view` | Latest report (built on demand if absent). |
 | POST | `/import-export/jobs/{uuid}/cancel` | `import_export.cancel` | Cancel a job (422 on invalid transition). |
 | POST | `/import-export/jobs/{uuid}/retry` | `import_export.retry` | Re-queue failed batches of a retryable job. |
+| POST | `/import-export/jobs/{uuid}/failed-records/export` | `import_export.export_failed_records` | Write failed-record errors to a managed private file (`format=ndjson|csv`). |
 
 ## CLI
 
@@ -309,6 +310,11 @@ middleware, which resolves the framework `PermissionManager` and calls `can()` w
 `import_export` resource. The guard fails closed: no authenticated user, no available
 permission manager, or a denial all return HTTP 403.
 
+Job read/operate endpoints are additionally owner-scoped by `created_by`. A user can
+list, inspect, cancel, retry, report, or export failed records only for jobs they
+created. Grant `import_export.manage_all` to trusted operators who need cross-user job
+access.
+
 Permission slugs (registered in the framework permission catalog):
 
 - `import_export.view`
@@ -316,6 +322,8 @@ Permission slugs (registered in the framework permission catalog):
 - `import_export.run_export`
 - `import_export.cancel`
 - `import_export.retry`
+- `import_export.export_failed_records`
+- `import_export.manage_all`
 
 ## Events
 
@@ -340,13 +348,14 @@ All events extend the framework `BaseEvent`. Payload fields in parentheses.
   1000); past the cap the engine increments the job's `error_overflow_count` instead of
   inserting rows.
 - **Failed-record export:** `FailedRecordExporter` writes a job's stored row errors to a
-  CSV or NDJSON file. It is a service-level capability -- there is no HTTP route or CLI
-  command for it yet, and nothing populates the report row's `failed_records_*` columns
-  automatically.
+  CSV or NDJSON file. HTTP exports always write under the managed private
+  `import_export.private_path` root and return a managed relative path; CLI exports
+  accept an operator-supplied path.
 - **Retention:** `RetentionCleaner` (via `import-export:cleanup`) deletes files recorded
   with the `tmp` role for terminal (completed/failed/cancelled) jobs older than the
-  cutoff, treating stored paths as local filesystem paths. Source and result files are
-  never deleted, and job/batch/error/report rows are not pruned.
+  cutoff, treating stored tmp paths as local filesystem paths. It then prunes the
+  terminal job's file, batch, error, report, and job rows. Source and result files are
+  not unlinked from disk by retention cleanup.
 
 ## Configuration
 
@@ -362,16 +371,27 @@ currently has no effect.
 | `enabled` | `true` | Reserved | Extension-level enable flag (not currently consulted). |
 | `routes_enabled` | `true` | Wired | Set to `false` for service/CLI-only installs. |
 | `queue` | `import-export` | Wired | Queue name used for batch jobs. |
-| `source_disk` | `uploads` | Reserved | HTTP/CLI default the source disk to the literal `uploads`. |
-| `result_disk` | `uploads` | Reserved | Result file rows currently record the job row's disk (effectively `local`). |
+| `source_disk` | `uploads` | Wired | HTTP/CLI default source disk. |
+| `source_roots` | `[]` | Wired | Optional disk-to-local-root map for import sources; otherwise each disk resolves under `<base>/<disk>`. |
+| `result_disk` | `local` | Wired | Default disk recorded for export result files. |
+| `private_path` | `null` | Wired | Private local root for HTTP-managed failed-record exports; defaults to `<base>/import-export`. |
 | `tmp_disk` / `tmp_path` | `local` / `import-export/tmp` | Reserved | Retention treats stored tmp paths as local filesystem paths. |
 | `batch_size` | `500` | Reserved | Creation paths default to 500; override per job via `batch_size` / `--batch-size`. |
-| `max_file_size` | `52428800` | Reserved | No engine-side size enforcement yet; validate in `supports()`/`plan()`. |
-| `retention_days` | `30` | Reserved | `import-export:cleanup --days` defaults to 30 independent of config. |
+| `max_batches_per_job` | `10000` | Wired | Maximum planned batches an adapter may return for one import/export job. |
+| `max_file_size` | `52428800` | Wired | Import source size limit enforced from the resolved local file size; request metadata is ignored. |
+| `retention_days` | `30` | Wired | Default cutoff age for `import-export:cleanup` when `--days` is omitted. |
 | `error_cap_per_severity` | `1000` | Reserved | Runtime cap is currently fixed at 1000 per severity. |
 | `stale_lock_minutes` | `15` | Reserved | Stale-lock reclaim window is currently fixed at 15 minutes. |
 
 ## Security
+
+### Import Source Paths
+
+HTTP and CLI import creation accepts a relative source path, never an absolute local
+path or stream wrapper. The service resolves the path under the configured disk root
+(`import_export.source_roots[disk]`, falling back to `<base>/<disk>`), rejects traversal,
+requires the resolved file to exist and be readable, and enforces `max_file_size` from
+the filesystem. Caller-supplied `metadata.size_bytes` is ignored for size enforcement.
 
 ### Archive Safety (ZIP-Slip)
 
@@ -383,7 +403,9 @@ ZIP bundle extraction routes every entry name through `PathGuard`, which rejects
 - Windows drive-letter paths.
 
 After normalization, a `realpath` containment check verifies the resolved target
-directory is still under the extraction root. Hostile archives are covered by tests.
+directory is still under the extraction root. Extraction also rejects archives with more
+than 1000 files, any entry larger than 50 MiB, or more than 100 MiB total uncompressed
+data by default. Hostile archives are covered by tests.
 
 ### Permission Gating
 

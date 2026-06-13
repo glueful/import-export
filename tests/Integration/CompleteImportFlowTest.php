@@ -40,6 +40,7 @@ final class CompleteImportFlowTest extends ImportExportTestCase
             $files,
             new FakeQueueManager()
         );
+        $this->seedSourceFile('imports/fake.ndjson');
 
         $job = $service->createImport(
             'fake',

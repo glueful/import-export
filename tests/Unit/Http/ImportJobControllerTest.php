@@ -9,6 +9,7 @@ use Glueful\Events\EventService;
 use Glueful\Events\ListenerProvider;
 use Glueful\Extensions\ImportExport\Events\ImportExportJobCancelled;
 use Glueful\Extensions\ImportExport\Http\Controllers\ImportJobController;
+use Glueful\Extensions\ImportExport\Http\JobAccess;
 use Glueful\Extensions\ImportExport\Registry\ExporterRegistry;
 use Glueful\Extensions\ImportExport\Registry\ImporterRegistry;
 use Glueful\Extensions\ImportExport\Repositories\ImportExportBatchRepository;
@@ -30,6 +31,7 @@ final class ImportJobControllerTest extends ImportExportTestCase
     {
         $queue = new FakeQueueManager();
         $controller = $this->controller($queue);
+        $this->seedSourceFile('imports/content.ndjson');
         $request = $this->jsonRequest('/import-export/imports', [
             'adapter' => 'fake',
             'disk' => 'uploads',
@@ -52,14 +54,16 @@ final class ImportJobControllerTest extends ImportExportTestCase
     {
         $dispatcher = new ImportJobControllerRecordingDispatcher();
         $controller = $this->controller(new FakeQueueManager(), new EventService($dispatcher, new ListenerProvider()));
-        $job = $this->seedJob(['status' => 'queued', 'type' => 'import', 'adapter' => 'fake']);
+        $job = $this->seedJob(['status' => 'queued', 'type' => 'import', 'adapter' => 'fake', 'created_by' => 'user-1']);
         $this->seedBatch(['job_uuid' => $job['uuid']]);
         $errors = new ImportExportErrorRepository($this->connection(), new ImportExportJobRepository($this->connection()));
         $errors->record($job['uuid'], null, ['message' => 'Bad row']);
+        $request = Request::create('/');
+        $request->attributes->set('auth.user', new UserIdentity('user-1'));
 
-        $show = $this->json($controller->show(Request::create('/'), $job['uuid']));
-        $errorData = $this->json($controller->errors(Request::create('/'), $job['uuid']));
-        $cancel = $this->json($controller->cancel(Request::create('/'), $job['uuid']));
+        $show = $this->json($controller->show($request, $job['uuid']));
+        $errorData = $this->json($controller->errors($request, $job['uuid']));
+        $cancel = $this->json($controller->cancel($request, $job['uuid']));
 
         self::assertSame($job['uuid'], $show['data']['job']['uuid']);
         self::assertCount(1, $show['data']['batches']);
@@ -68,13 +72,28 @@ final class ImportJobControllerTest extends ImportExportTestCase
         self::assertInstanceOf(ImportExportJobCancelled::class, $dispatcher->events[0] ?? null);
     }
 
+    public function testJobEndpointsHideJobsOwnedByAnotherUser(): void
+    {
+        $controller = $this->controller(new FakeQueueManager());
+        $job = $this->seedJob(['status' => 'queued', 'type' => 'import', 'adapter' => 'fake', 'created_by' => 'other-user']);
+        $request = Request::create('/');
+        $request->attributes->set('auth.user', new UserIdentity('user-1'));
+
+        self::assertSame(404, $controller->show($request, $job['uuid'])->getStatusCode());
+        self::assertSame(404, $controller->errors($request, $job['uuid'])->getStatusCode());
+        self::assertSame(404, $controller->cancel($request, $job['uuid'])->getStatusCode());
+    }
+
     public function testListCanFilterJobsByTypeAndStatus(): void
     {
         $controller = $this->controller(new FakeQueueManager());
-        $this->seedJob(['type' => 'import', 'status' => 'queued']);
-        $this->seedJob(['type' => 'export', 'status' => 'queued']);
+        $this->seedJob(['type' => 'import', 'status' => 'queued', 'created_by' => 'user-1']);
+        $this->seedJob(['type' => 'export', 'status' => 'queued', 'created_by' => 'user-1']);
+        $this->seedJob(['type' => 'import', 'status' => 'queued', 'created_by' => 'other-user']);
+        $request = Request::create('/import-export/jobs?type=import&status=queued');
+        $request->attributes->set('auth.user', new UserIdentity('user-1'));
 
-        $data = $this->json($controller->index(Request::create('/import-export/jobs?type=import&status=queued')));
+        $data = $this->json($controller->index($request));
 
         self::assertCount(1, $data['data']['jobs']);
         self::assertSame('import', $data['data']['jobs'][0]['type']);
@@ -104,6 +123,7 @@ final class ImportJobControllerTest extends ImportExportTestCase
             $jobs,
             $batches,
             $errors,
+            new JobAccess($this->appContext()),
             $events
         );
     }

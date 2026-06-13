@@ -15,8 +15,11 @@ use Glueful\Extensions\ImportExport\Repositories\ImportExportBatchRepository;
 use Glueful\Extensions\ImportExport\Repositories\ImportExportFileRepository;
 use Glueful\Extensions\ImportExport\Repositories\ImportExportJobRepository;
 use Glueful\Extensions\ImportExport\Support\ExportOptions;
+use Glueful\Extensions\ImportExport\Support\ExportPlan;
 use Glueful\Extensions\ImportExport\Support\ImportOptions;
+use Glueful\Extensions\ImportExport\Support\ImportPlan;
 use Glueful\Extensions\ImportExport\Support\ImportSource;
+use Glueful\Extensions\ImportExport\Support\PathGuard;
 use Glueful\Queue\QueueManager;
 
 use function config;
@@ -39,21 +42,23 @@ final class ImportExportService
     /** @return array<string,mixed> */
     public function createImport(string $adapterKey, ImportSource $source, ImportOptions $options): array
     {
-        $sizeBytes = $this->guardMaxFileSize($source);
+        [$resolvedSource, $relativeSourcePath] = $this->resolveSource($source);
+        $sizeBytes = $this->guardMaxFileSize($resolvedSource->path);
 
         $importer = $this->importers->get($adapterKey);
-        if (!$importer->supports($source)) {
+        if (!$importer->supports($resolvedSource)) {
             throw new \RuntimeException(sprintf('Importer "%s" does not support the provided source.', $adapterKey));
         }
 
-        $plan = $importer->plan($source, $options);
+        $plan = $importer->plan($resolvedSource, $options);
+        $this->guardBatchCount($plan);
         $job = $this->jobs->create([
             'type' => 'import',
             'adapter' => $adapterKey,
             'status' => 'queued',
             'mode' => $options->mode,
             'source_disk' => $source->disk,
-            'source_path' => $source->path,
+            'source_path' => $relativeSourcePath,
             'options' => $this->encodeJson($options->options),
             'total_records' => $plan->totalRecords,
             'created_by' => $options->actorUuid,
@@ -63,9 +68,9 @@ final class ImportExportService
             'job_uuid' => $job['uuid'],
             'role' => 'source',
             'disk' => $source->disk,
-            'path' => $source->path,
+            'path' => $relativeSourcePath,
             'mime_type' => $source->mimeType,
-            'size_bytes' => $sizeBytes ?? 0,
+            'size_bytes' => $sizeBytes,
         ]);
 
         foreach ($plan->batches as $batch) {
@@ -96,13 +101,14 @@ final class ImportExportService
     {
         $exporter = $this->exporters->get($adapterKey);
         $plan = $exporter->plan($options);
+        $this->guardBatchCount($plan);
         $job = $this->jobs->create([
             'type' => 'export',
             'adapter' => $adapterKey,
             'status' => 'queued',
             'mode' => 'commit',
             'format' => $options->format,
-            'result_disk' => (string) config($this->context, 'import_export.result_disk', 'uploads'),
+            'result_disk' => (string) config($this->context, 'import_export.result_disk', 'local'),
             'filters' => $this->encodeJson($options->filters),
             'options' => $this->encodeJson($options->options),
             'total_records' => $plan->totalRecords,
@@ -133,17 +139,49 @@ final class ImportExportService
     }
 
     /**
-     * Enforce the configured max source file size and return the size when known.
-     *
-     * Size resolution: an explicit `size_bytes` source metadata entry wins; otherwise
-     * the path is probed as a local file. Unknown sizes are not rejected.
+     * @return array{ImportSource,string}
      */
-    private function guardMaxFileSize(ImportSource $source): ?int
+    private function resolveSource(ImportSource $source): array
     {
-        $sizeBytes = $this->sourceSizeBytes($source);
+        $relativePath = PathGuard::normalizeRelative($source->path);
+        $absolutePath = PathGuard::resolveUnderRoot($this->sourceRoot($source->disk), $relativePath);
+
+        if (!is_file($absolutePath) || !is_readable($absolutePath)) {
+            throw new \InvalidArgumentException('Source file was not found or is not readable.');
+        }
+
+        return [
+            new ImportSource(
+                $source->disk,
+                $absolutePath,
+                $source->mimeType,
+                array_merge($source->metadata, ['relative_path' => $relativePath])
+            ),
+            $relativePath,
+        ];
+    }
+
+    private function sourceRoot(string $disk): string
+    {
+        $roots = config($this->context, 'import_export.source_roots', []);
+        if (is_array($roots) && isset($roots[$disk]) && is_string($roots[$disk]) && $roots[$disk] !== '') {
+            return $roots[$disk];
+        }
+
+        return $this->context->getBasePath() . DIRECTORY_SEPARATOR . $disk;
+    }
+
+    private function guardMaxFileSize(string $absolutePath): int
+    {
+        $size = filesize($absolutePath);
+        if ($size === false) {
+            throw new \InvalidArgumentException('Source file size could not be determined.');
+        }
+
+        $sizeBytes = (int) $size;
         $maxFileSize = (int) config($this->context, 'import_export.max_file_size', 52428800);
 
-        if ($maxFileSize > 0 && $sizeBytes !== null && $sizeBytes > $maxFileSize) {
+        if ($maxFileSize > 0 && $sizeBytes > $maxFileSize) {
             throw new \InvalidArgumentException(sprintf(
                 'Source file is %d bytes which exceeds the configured maximum of %d bytes.',
                 $sizeBytes,
@@ -154,20 +192,17 @@ final class ImportExportService
         return $sizeBytes;
     }
 
-    private function sourceSizeBytes(ImportSource $source): ?int
+    private function guardBatchCount(ImportPlan|ExportPlan $plan): void
     {
-        $metadataSize = $source->metadata['size_bytes'] ?? null;
-        if (is_numeric($metadataSize)) {
-            return (int) $metadataSize;
+        $count = count($plan->batches);
+        $maxBatches = (int) config($this->context, 'import_export.max_batches_per_job', 10000);
+        if ($maxBatches > 0 && $count > $maxBatches) {
+            throw new \InvalidArgumentException(sprintf(
+                'Import/export plan contains too many batches (%d); maximum is %d.',
+                $count,
+                $maxBatches
+            ));
         }
-
-        if (is_file($source->path)) {
-            $size = filesize($source->path);
-
-            return $size === false ? null : $size;
-        }
-
-        return null;
     }
 
     /** @param array<string,mixed> $data */

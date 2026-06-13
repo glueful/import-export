@@ -56,4 +56,16 @@ final class NdjsonReaderTest extends TestCase
         $this->assertSame([['id' => 1], ['id' => 2]], iterator_to_array((new JsonReader())->read($arrayPath)));
         $this->assertSame([['id' => 3]], iterator_to_array((new JsonReader())->read($objectPath)));
     }
+
+    public function testJsonReaderRejectsFilesOverConfiguredByteLimit(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'json-reader-');
+        self::assertIsString($path);
+        file_put_contents($path, '[{"id":1}]');
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('JSON file exceeds');
+
+        iterator_to_array((new JsonReader(maxBytes: 4))->read($path));
+    }
 }
