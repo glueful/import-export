@@ -17,6 +17,7 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 - Prune old terminal job database rows during retention cleanup after unlinking tmp-role files.
 - Escape spreadsheet formula-like CSV values and reject null bytes in guarded relative paths.
 - Store generic adapter exception messages for failed batches instead of persisting raw exception text.
+- Add a pre-read size limit to the JSON file reader.
 
 ## [1.0.0] - 2026-06-11
 

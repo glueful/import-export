@@ -6,9 +6,21 @@ namespace Glueful\Extensions\ImportExport\Files;
 
 final class JsonReader
 {
+    public function __construct(private int $maxBytes = 52428800)
+    {
+    }
+
     /** @return \Generator<int,array<string,mixed>> */
     public function read(string $path): \Generator
     {
+        $size = filesize($path);
+        if ($size !== false && $this->maxBytes > 0 && $size > $this->maxBytes) {
+            throw new \RuntimeException(sprintf(
+                'JSON file exceeds the maximum size of %d bytes.',
+                $this->maxBytes
+            ));
+        }
+
         $contents = file_get_contents($path);
         if ($contents === false) {
             throw new \RuntimeException(sprintf('Unable to read JSON file "%s".', $path));
