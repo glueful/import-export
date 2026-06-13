@@ -9,6 +9,7 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 ### Fixed
 
 - Harden HTTP failed-record export so request bodies can no longer choose arbitrary filesystem paths; exports now write under a managed private root and require `import_export.export_failed_records`.
+- Confine import source paths to configured disk roots, fail closed on missing/unreadable files, and enforce `max_file_size` from the resolved file instead of trusting request metadata.
 
 ## [1.0.0] - 2026-06-11
 

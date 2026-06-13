@@ -30,6 +30,7 @@ final class ImportJobControllerTest extends ImportExportTestCase
     {
         $queue = new FakeQueueManager();
         $controller = $this->controller($queue);
+        $this->seedSourceFile('imports/content.ndjson');
         $request = $this->jsonRequest('/import-export/imports', [
             'adapter' => 'fake',
             'disk' => 'uploads',

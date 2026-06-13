@@ -37,6 +37,7 @@ final class ImportExportEventDispatchTest extends ImportExportTestCase
             queueName: 'imports',
             events: $events,
         );
+        $this->seedSourceFile('wordpress.zip');
 
         $service->createImport('wordpress', new ImportSource('uploads', 'wordpress.zip'), new ImportOptions());
 

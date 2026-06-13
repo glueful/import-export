@@ -5,6 +5,7 @@ declare(strict_types=1);
 return [
     'routes_enabled' => true,
     'source_disk' => 'uploads',
+    'source_roots' => [],
     'result_disk' => 'uploads',
     'private_path' => null,
     'tmp_disk' => 'local',

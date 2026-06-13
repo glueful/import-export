@@ -43,6 +43,7 @@ final class ImportExportCommandsTest extends ImportExportTestCase
     {
         $queue = new FakeQueueManager();
         $this->bindImportExportServices($queue);
+        $this->seedSourceFile('imports/content.ndjson');
 
         $import = new ImportCreateCommand($this->appContext()->getContainer(), $this->appContext());
         $import->setName('import:run');

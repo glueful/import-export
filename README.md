@@ -262,7 +262,7 @@ require `auth` plus the listed permission (fail-closed).
 | Method | Path | Permission | Description |
 | --- | --- | --- | --- |
 | GET | `/import-export/adapters` | `import_export.view` | List registered importer/exporter adapters. |
-| POST | `/import-export/imports` | `import_export.run_import` | Create + queue an import job (`adapter`, `path` required; `disk`, `mime_type`, `metadata`, `mode`, `batch_size`, `options`). |
+| POST | `/import-export/imports` | `import_export.run_import` | Create + queue an import job (`adapter`, relative `path` required; `disk`, `mime_type`, `metadata`, `mode`, `batch_size`, `options`). |
 | POST | `/import-export/exports` | `import_export.run_export` | Create + queue an export job (`adapter` required; `format`, `batch_size`, `filters`, `options`). |
 | GET | `/import-export/jobs` | `import_export.view` | List jobs; query params `type`, `status`, `limit` (1-200, default 50). |
 | GET | `/import-export/jobs/{uuid}` | `import_export.view` | One job with its batches. |
@@ -364,17 +364,26 @@ currently has no effect.
 | `enabled` | `true` | Reserved | Extension-level enable flag (not currently consulted). |
 | `routes_enabled` | `true` | Wired | Set to `false` for service/CLI-only installs. |
 | `queue` | `import-export` | Wired | Queue name used for batch jobs. |
-| `source_disk` | `uploads` | Reserved | HTTP/CLI default the source disk to the literal `uploads`. |
+| `source_disk` | `uploads` | Wired | HTTP/CLI default source disk. |
+| `source_roots` | `[]` | Wired | Optional disk-to-local-root map for import sources; otherwise each disk resolves under `<base>/<disk>`. |
 | `result_disk` | `uploads` | Reserved | Result file rows currently record the job row's disk (effectively `local`). |
 | `private_path` | `null` | Wired | Private local root for HTTP-managed failed-record exports; defaults to `<base>/import-export`. |
 | `tmp_disk` / `tmp_path` | `local` / `import-export/tmp` | Reserved | Retention treats stored tmp paths as local filesystem paths. |
 | `batch_size` | `500` | Reserved | Creation paths default to 500; override per job via `batch_size` / `--batch-size`. |
-| `max_file_size` | `52428800` | Reserved | No engine-side size enforcement yet; validate in `supports()`/`plan()`. |
+| `max_file_size` | `52428800` | Wired | Import source size limit enforced from the resolved local file size; request metadata is ignored. |
 | `retention_days` | `30` | Reserved | `import-export:cleanup --days` defaults to 30 independent of config. |
 | `error_cap_per_severity` | `1000` | Reserved | Runtime cap is currently fixed at 1000 per severity. |
 | `stale_lock_minutes` | `15` | Reserved | Stale-lock reclaim window is currently fixed at 15 minutes. |
 
 ## Security
+
+### Import Source Paths
+
+HTTP and CLI import creation accepts a relative source path, never an absolute local
+path or stream wrapper. The service resolves the path under the configured disk root
+(`import_export.source_roots[disk]`, falling back to `<base>/<disk>`), rejects traversal,
+requires the resolved file to exist and be readable, and enforces `max_file_size` from
+the filesystem. Caller-supplied `metadata.size_bytes` is ignored for size enforcement.
 
 ### Archive Safety (ZIP-Slip)
 

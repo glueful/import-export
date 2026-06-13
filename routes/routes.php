@@ -35,10 +35,10 @@ $router->group(['prefix' => '/import-export', 'middleware' => ['auth']], functio
      * @tag Import Export
      * @requestBody
      *   adapter:string="Importer adapter key (see GET /import-export/adapters)" {required=adapter}
-     *   path:string="Source file path on the storage disk" {required=path}
+     *   path:string="Relative source file path under the configured source disk root" {required=path}
      *   disk:string="Source storage disk (default: uploads)"
      *   mime_type:string="Optional source MIME type hint"
-     *   metadata:object="Optional source metadata passed to the adapter's supports()/plan()"
+     *   metadata:object="Optional source metadata passed to the adapter's supports()/plan(); size_bytes is ignored"
      *   mode:string="Import mode: dry_run|commit (default: dry_run)"
      *   batch_size:int="Requested records per batch (default: 500; the adapter's plan decides)"
      *   options:object="Adapter-specific options, available to the adapter during plan()"

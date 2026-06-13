@@ -86,6 +86,23 @@ abstract class ImportExportTestCase extends TestCase
         $this->bindings[$id] = $service;
     }
 
+    protected function seedSourceFile(
+        string $relativePath = 'imports/source.ndjson',
+        string $contents = "{}\n",
+        string $disk = 'uploads',
+    ): string {
+        $path = $this->context->getBasePath() . DIRECTORY_SEPARATOR
+            . $disk . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relativePath);
+
+        if (!is_dir(dirname($path)) && !mkdir(dirname($path), 0775, true) && !is_dir(dirname($path))) {
+            throw new \RuntimeException(sprintf('Unable to create test source directory "%s".', dirname($path)));
+        }
+
+        file_put_contents($path, $contents);
+
+        return $path;
+    }
+
     /** @param array<string,mixed> $overrides */
     protected function seedJob(array $overrides = []): array
     {

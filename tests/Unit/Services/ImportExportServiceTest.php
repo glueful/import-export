@@ -36,6 +36,7 @@ final class ImportExportServiceTest extends ImportExportTestCase
             ], retryable: true)),
             queue: $queue,
         );
+        $this->seedSourceFile('wordpress.zip');
 
         $job = $service->createImport('wordpress', new ImportSource('uploads', 'wordpress.zip'), new ImportOptions());
 
@@ -53,6 +54,7 @@ final class ImportExportServiceTest extends ImportExportTestCase
                 new ImportBatch('batch-a', 'pending', 1, 0, 1),
             ], retryable: true)),
         );
+        $this->seedSourceFile('wordpress.zip');
 
         $job = $service->createImport(
             'wordpress',
@@ -61,6 +63,49 @@ final class ImportExportServiceTest extends ImportExportTestCase
         );
 
         $this->assertSame(['site' => 'main'], json_decode((string) $job['options'], true));
+    }
+
+    public function testCreateImportRejectsTraversalSourcePath(): void
+    {
+        $service = $this->service(importer: new FakeImporter('wordpress'));
+
+        $this->expectException(\RuntimeException::class);
+
+        $service->createImport(
+            'wordpress',
+            new ImportSource('uploads', '../secret.ndjson'),
+            new ImportOptions()
+        );
+    }
+
+    public function testCreateImportFailsClosedWhenSourceFileIsMissing(): void
+    {
+        $service = $this->service(importer: new FakeImporter('wordpress'));
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Source file was not found');
+
+        $service->createImport(
+            'wordpress',
+            new ImportSource('uploads', 'imports/missing.ndjson'),
+            new ImportOptions()
+        );
+    }
+
+    public function testCreateImportIgnoresRequestMetadataSizeWhenEnforcingMaxFileSize(): void
+    {
+        $this->appContext()->mergeConfigDefaults('import_export', ['max_file_size' => 2]);
+        $this->seedSourceFile('imports/big.ndjson', 'abcd');
+        $service = $this->service(importer: new FakeImporter('wordpress'));
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('exceeds the configured maximum');
+
+        $service->createImport(
+            'wordpress',
+            new ImportSource('uploads', 'imports/big.ndjson', metadata: ['size_bytes' => 1]),
+            new ImportOptions()
+        );
     }
 
     public function testCreateExportJobPlansBatchesAndEnqueuesJobs(): void
