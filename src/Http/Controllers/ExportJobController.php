@@ -9,6 +9,8 @@ use Glueful\Bootstrap\ApplicationContext;
 use Glueful\Extensions\ImportExport\Services\ImportExportService;
 use Glueful\Extensions\ImportExport\Support\ExportOptions;
 use Glueful\Http\Response;
+use Glueful\Routing\Attributes\ApiOperation;
+use Glueful\Routing\Attributes\ApiResponse;
 use Symfony\Component\HttpFoundation\Request;
 
 use function config;
@@ -21,6 +23,25 @@ final class ExportJobController
     ) {
     }
 
+    /**
+     * Queue an export job for a registered exporter adapter.
+     */
+    #[ApiOperation(
+        summary: 'Queue Export Job',
+        description: 'Creates an export job for a registered exporter adapter, plans deterministic '
+            . 'batches, and queues one batch job per batch. Exports always run in commit mode. '
+            . 'Body: `adapter` (required; exporter adapter key, see GET /import-export/adapters), '
+            . "`format` (requested output format, default: ndjson; interpreted by the adapter's plan), "
+            . "`batch_size` (requested records per batch, default: 500; the adapter's plan decides), "
+            . '`filters` (adapter-specific record filters, available to the adapter during plan()), '
+            . '`options` (adapter-specific options, available to the adapter during plan()). '
+            . 'Requires the `import_export.run_export` permission.',
+        tags: ['Import Export'],
+    )]
+    #[ApiResponse(201, description: 'Export job queued')]
+    #[ApiResponse(400, description: 'Unknown adapter')]
+    #[ApiResponse(403, description: 'Permission denied (import_export.run_export)')]
+    #[ApiResponse(422, description: 'Validation failed (missing adapter)')]
     public function store(Request $request): Response
     {
         try {
