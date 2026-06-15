@@ -9,6 +9,8 @@ use Glueful\Extensions\ImportExport\Repositories\ImportExportJobRepository;
 use Glueful\Extensions\ImportExport\Repositories\ImportExportReportRepository;
 use Glueful\Extensions\ImportExport\Services\ReportBuilder;
 use Glueful\Http\Response;
+use Glueful\Routing\Attributes\ApiOperation;
+use Glueful\Routing\Attributes\ApiResponse;
 use Symfony\Component\HttpFoundation\Request;
 
 final class ImportExportReportController
@@ -21,6 +23,20 @@ final class ImportExportReportController
     ) {
     }
 
+    /**
+     * Return the latest stored report for a caller-owned job, or build one on demand.
+     */
+    #[ApiOperation(
+        summary: 'Show Import/Export Job Report',
+        description: 'Returns the latest stored report for a caller-owned job, or builds one on demand '
+            . 'from the current job state (type, adapter, status, totals, failed and overflow counts). '
+            . 'Users with `import_export.manage_all` can retrieve reports for any job. '
+            . 'Requires the `import_export.view` permission.',
+        tags: ['Import Export'],
+    )]
+    #[ApiResponse(200, description: 'Report retrieved')]
+    #[ApiResponse(403, description: 'Permission denied (import_export.view)')]
+    #[ApiResponse(404, description: 'Job not found')]
     public function show(Request $request, string $uuid): Response
     {
         $job = $this->jobs->find($uuid);

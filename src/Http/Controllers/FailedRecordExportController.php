@@ -10,6 +10,8 @@ use Glueful\Extensions\ImportExport\Repositories\ImportExportJobRepository;
 use Glueful\Extensions\ImportExport\Services\FailedRecordExporter;
 use Glueful\Extensions\ImportExport\Support\PathGuard;
 use Glueful\Http\Response;
+use Glueful\Routing\Attributes\ApiOperation;
+use Glueful\Routing\Attributes\ApiResponse;
 use Symfony\Component\HttpFoundation\Request;
 
 use function config;
@@ -24,6 +26,21 @@ final class FailedRecordExportController
     ) {
     }
 
+    /**
+     * Write a caller-owned job's stored failed records to a managed private file.
+     */
+    #[ApiOperation(
+        summary: 'Export Failed Records',
+        description: 'Writes the stored failed-record errors for a caller-owned job to a managed '
+            . 'private ndjson or csv file. Users with `import_export.manage_all` can export failures '
+            . 'for any job. Body: `format` (output format: ndjson|csv, default: ndjson). '
+            . 'Requires the `import_export.export_failed_records` permission.',
+        tags: ['Import Export'],
+    )]
+    #[ApiResponse(200, description: 'Failed records exported')]
+    #[ApiResponse(403, description: 'Permission denied (import_export.export_failed_records)')]
+    #[ApiResponse(404, description: 'Job not found')]
+    #[ApiResponse(422, description: 'Validation failed')]
     public function export(Request $request, string $uuid): Response
     {
         $job = $this->jobs->find($uuid);

@@ -6,6 +6,17 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-06-14
+
+### Changed
+
+- Migrated OpenAPI documentation to the framework 1.57.0 reflect generator. Route
+  documentation (summaries, query parameters, request-body fields and response codes)
+  is now expressed as typed `#[ApiOperation]`, `#[QueryParam]` and `#[ApiResponse]`
+  attributes on the controller methods; the now-inert route-file docblocks were removed.
+  Docs-only — no runtime behaviour changes.
+- Raised the minimum framework requirement to `^1.57.0`.
+
 ## [1.0.1] - 2026-06-13
 
 ### Fixed
