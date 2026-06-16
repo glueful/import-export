@@ -198,15 +198,15 @@ final class ImportExportServiceProvider extends ServiceProvider
     public function register(ApplicationContext $context): void
     {
         $this->mergeConfig('import_export', require __DIR__ . '/../config/import_export.php');
+    }
+
+    public function boot(ApplicationContext $context): void
+    {
         $this->loadMigrationsFrom(
             __DIR__ . '/../migrations',
             MigrationPriority::DEFAULT,
             'glueful/import-export'
         );
-    }
-
-    public function boot(ApplicationContext $context): void
-    {
         $this->discoverCommands('Glueful\\Extensions\\ImportExport\\Console', __DIR__ . '/Console');
         if ((bool) config($context, 'import_export.routes_enabled', true)) {
             $this->loadRoutesFrom(__DIR__ . '/../routes/routes.php');
