@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Glueful\Extensions\ImportExport;
 
 use Glueful\Bootstrap\ApplicationContext;
-use Glueful\Database\Migrations\MigrationPriority;
 use Glueful\Events\EventService;
 use Glueful\Extensions\ImportExport\Console\ExportCreateCommand;
 use Glueful\Extensions\ImportExport\Console\ExportListCommand;
@@ -202,11 +201,7 @@ final class ImportExportServiceProvider extends ServiceProvider
 
     public function boot(ApplicationContext $context): void
     {
-        $this->loadMigrationsFrom(
-            __DIR__ . '/../migrations',
-            MigrationPriority::DEFAULT,
-            'glueful/import-export'
-        );
+        // Migrations are declared by the composer manifest (extra.glueful.migrations).
         $this->discoverCommands('Glueful\\Extensions\\ImportExport\\Console', __DIR__ . '/Console');
         if ((bool) config($context, 'import_export.routes_enabled', true)) {
             $this->loadRoutesFrom(__DIR__ . '/../routes/routes.php');
