@@ -6,6 +6,18 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 ## [Unreleased]
 
+### Fixed
+- `import-export:cleanup` deleted a finished job's rows but left the files it produced on
+  disk: it removed only `tmp`-role files, which nothing records, and never an export's
+  `result` files. With the rows gone those files could not be downloaded or found again.
+  It now deletes a terminal job's `result` and `tmp` files through the storage disk each
+  row names, and keeps the job's rows when a file cannot be deleted so the next run retries.
+  An import's `source` file is still left in place.
+
+### Changed
+- `RetentionCleaner` takes the `StorageManager` (and an optional logger). It is autowired;
+  code that constructs it directly must pass one.
+
 ## [1.2.0] - 2026-08-17
 
 ### Added
