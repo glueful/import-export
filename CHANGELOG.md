@@ -6,6 +6,8 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-09-22
+
 ### Fixed
 - `import-export:cleanup` deleted a finished job's rows but left the files it produced on
   disk: it removed only `tmp`-role files, which nothing records, and never an export's
