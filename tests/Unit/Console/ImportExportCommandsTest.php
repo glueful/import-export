@@ -24,6 +24,8 @@ use Glueful\Extensions\ImportExport\Repositories\ImportExportJobRepository;
 use Glueful\Extensions\ImportExport\Services\ImportExportService;
 use Glueful\Extensions\ImportExport\Services\FailedRecordExporter;
 use Glueful\Extensions\ImportExport\Services\RetentionCleaner;
+use Glueful\Storage\PathGuard;
+use Glueful\Storage\StorageManager;
 use Glueful\Extensions\ImportExport\Services\RetryService;
 use Glueful\Extensions\ImportExport\Support\ExportBatch;
 use Glueful\Extensions\ImportExport\Support\ExportPlan;
@@ -159,7 +161,13 @@ final class ImportExportCommandsTest extends ImportExportTestCase
             $queue
         ));
         $this->bind(RetryService::class, new RetryService($importers, $exporters, $jobs, $batches, $queue));
-        $this->bind(RetentionCleaner::class, new RetentionCleaner($this->connection()));
+        $this->bind(RetentionCleaner::class, new RetentionCleaner(
+            $this->connection(),
+            new StorageManager(
+                ['default' => 'local', 'disks' => ['local' => ['driver' => 'local', 'root' => sys_get_temp_dir()]]],
+                new PathGuard(),
+            ),
+        ));
     }
 }
 

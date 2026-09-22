@@ -35,7 +35,7 @@ validates your prices, and never decides what a "post" is; it just runs the job 
 - ZIP-slip protection via `PathGuard` (hostile-archive tested).
 - Fail-closed permission gating on every HTTP route.
 - HTTP management API and CLI commands.
-- Failed-record export service and tmp-file retention cleanup.
+- Failed-record export service and retention cleanup of finished jobs and their files.
 
 ## Installation
 
@@ -283,7 +283,7 @@ require `auth` plus the listed permission (fail-closed).
 | `import-export:status <job-uuid>` | Show job status and batches. |
 | `import-export:retry <job-uuid>` | Retry failed batches (retryable adapters only). |
 | `import-export:cancel <job-uuid>` | Cancel a job. |
-| `import-export:cleanup [--days=30]` | Delete tmp-role files for terminal jobs older than the cutoff. |
+| `import-export:cleanup [--days=30]` | Delete terminal jobs older than the cutoff, with their result and tmp files. |
 
 ### Service API
 
@@ -351,11 +351,12 @@ All events extend the framework `BaseEvent`. Payload fields in parentheses.
   CSV or NDJSON file. HTTP exports always write under the managed private
   `import_export.private_path` root and return a managed relative path; CLI exports
   accept an operator-supplied path.
-- **Retention:** `RetentionCleaner` (via `import-export:cleanup`) deletes files recorded
-  with the `tmp` role for terminal (completed/failed/cancelled) jobs older than the
-  cutoff, treating stored tmp paths as local filesystem paths. It then prunes the
-  terminal job's file, batch, error, report, and job rows. Source and result files are
-  not unlinked from disk by retention cleanup.
+- **Retention:** `RetentionCleaner` (via `import-export:cleanup`) handles terminal
+  (completed/failed/cancelled) jobs older than the cutoff. It deletes the files each job
+  produced — `result` and `tmp` rows — through the storage disk the row names, then prunes
+  the job's file, batch, error, report, and job rows. An import's `source` file is the
+  operator's own and is left in place. A job whose files cannot be deleted (an unconfigured
+  disk, a storage error) keeps its rows so a later run can retry; the failure is logged.
 
 ## Configuration
 
@@ -373,9 +374,9 @@ currently has no effect.
 | `queue` | `import-export` | Wired | Queue name used for batch jobs. |
 | `source_disk` | `uploads` | Wired | HTTP/CLI default source disk. |
 | `source_roots` | `[]` | Wired | Optional disk-to-local-root map for import sources; otherwise each disk resolves under `<base>/<disk>`. |
-| `result_disk` | `local` | Wired | Default disk recorded for export result files. |
+| `result_disk` | `local` | Wired | Disk recorded for export result files. It must name a disk in the app's `storage.disks`: retention deletes results through it, and an app reads them back through it. |
 | `private_path` | `null` | Wired | Private local root for HTTP-managed failed-record exports; defaults to `<base>/import-export`. |
-| `tmp_disk` / `tmp_path` | `local` / `import-export/tmp` | Reserved | Retention treats stored tmp paths as local filesystem paths. |
+| `tmp_disk` / `tmp_path` | `local` / `import-export/tmp` | Reserved | Retention deletes `tmp` rows through the disk each row names. |
 | `batch_size` | `500` | Reserved | Creation paths default to 500; override per job via `batch_size` / `--batch-size`. |
 | `max_batches_per_job` | `10000` | Wired | Maximum planned batches an adapter may return for one import/export job. |
 | `max_file_size` | `52428800` | Wired | Import source size limit enforced from the resolved local file size; request metadata is ignored. |
